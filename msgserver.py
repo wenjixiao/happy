@@ -2,7 +2,14 @@ import asyncio
 import msgprotocol
 import message_pb2 as message
 
+players = []
+games = []
+
 class MsgServerProtocol(msgprotocol.MsgProtocol):
+    def __init__(self):
+        msgprotocol.__init__(self)
+        self.player = None
+        
     def connection_made(self,transport):
         self.transport = transport
  
@@ -10,7 +17,22 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         msg = message.Msg()
         msg.ParseFromString(bin)
         print("get client msg:\n",msg)
-        self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+        
+        # login 
+        if msg.type == message.MsgType.LOGIN:
+            player = message.Player()
+            player.pid = msg.login.pid
+            player.passwd = msg.login.passwd
+            
+            if player not in players:
+                players.append(player)
+            
+            self.player = player
+        # logout    
+        elif msg.type == message.MsgType.Logout:
+            players.remove(self.player)
+        
+        # self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
     
     def connection_lost(self,exc):
         msgprotocol.MsgProtocol.connection_lost(self,exc)

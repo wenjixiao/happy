@@ -8,9 +8,9 @@ class MsgClientProtocol(msgprotocol.MsgProtocol):
         msg.ParseFromString(bin)
         print("get server msg:\n",msg)
     
-async def getCommand():
+async def getLine():
     return input(">>>")
-
+    
 async def main():
     loop = asyncio.get_running_loop()
 
@@ -18,16 +18,31 @@ async def main():
         lambda: MsgClientProtocol(),'127.0.0.1',5678)
     
     while True:
-        cmd = await loop.create_task(getCommand())
-        if not cmd == "bye":
+        line = await loop.create_task(getLine())
+        myline = line.split()
+        cmd = myline[0]
+        
+        if cmd == "logout":
             msg = message.Msg()
-            msg.name = cmd
+            msg.type = message.MsgType.LOGOUT
             transport.write(msgprotocol.packMsg(msg.SerializeToString()))
-            # give a chance to other coroutines
-            await asyncio.sleep(1)
-        else:
             transport.close()
             break
+            
+        elif cmd == "login":
+            msg = message.Msg()
+            msg.type = message.MsgType.LOGIN
+            msg.login.uid = myline[1]
+            msg.login.passwd = myline[2]
+            
+            transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+        elif cmd == "info":
+            
+        else:
+            print("***no that command!***\n")
+
+        # give a chance to other coroutines
+        await asyncio.sleep(1)
             
     loop.stop()
     

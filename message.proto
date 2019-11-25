@@ -1,5 +1,91 @@
 syntax="proto3";
 
+enum StoneColor {
+    WHITE = 0;
+    BLACK = 1;
+}
+
+enum WhoFirst {
+    YOU = 0;
+    ME = 1;
+    RANDOM = 3;
+}
+
+//------------------------------------------------
+
+message Stone {
+    StoneColor color = 1;
+    int32 x = 2;
+    int32 y = 3;
+}
+
+message Game {
+    int32 gid = 1;
+    repeated Stone stones = 2;
+    repeated Player players = 3;
+    repeated Player watchers = 4;
+    repeated Clock clockes = 5;
+    Proto proto = 6;
+}
+
+message Player {
+    string pid = 1;
+    string level = 2;
+    string passwd = 3;
+}
+
+message Clock {
+    int32 bao_liu = 1;
+    int32 du_miao = 2;
+    int32 jin_ji_ci_shu = 3;
+    int32 jin_ji_mei_ci = 4;
+}
+
+message Proto {
+    int32 rang_zi = 1;
+    float tie_mu = 2;
+    WhoFirst who_first = 3;
+}
+
+//------------------------------------------------
+
+enum MsgType {
+    LOGIN = 0;
+    LOGOUT = 1;
+    HAND = 2;
+}
+
+//------------------------------------------------
+
 message Msg{
-    string name=1;
+    MsgType type = 1;
+    oneof union {
+        Login login = 2;
+        Logout logout = 3;
+        Hand hand = 4;
+    }
+}
+
+message Login {
+    string pid = 1;
+    string passwd = 2;
+}
+
+message Logout { }
+
+message Hand {
+    int32 gid = 1;
+    Stone stone = 2;
+}
+
+message CreateGame {
+    Proto proto = 1;
+    repeated Player players = 2;
+}
+
+message Info { }
+
+message All {
+    repeated Player players = 1;
+    repeated Game games = 2;
 }
