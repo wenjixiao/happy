@@ -6,7 +6,7 @@ class MsgClientProtocol(msgprotocol.MsgProtocol):
     def process_msg(self,bin):
         msg = message.Msg()
         msg.ParseFromString(bin)
-        print("get server msg:\n",msg)
+        print(msg)
     
 async def getLine():
     return input(">>>")
@@ -32,11 +32,15 @@ async def main():
         elif cmd == "login":
             msg = message.Msg()
             msg.type = message.MsgType.LOGIN
-            msg.login.uid = myline[1]
+            msg.login.pid = myline[1]
             msg.login.passwd = myline[2]
             
             transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+            
         elif cmd == "info":
+            msg = message.Msg()
+            msg.type = message.MsgType.INFO
+            transport.write(msgprotocol.packMsg(msg.SerializeToString()))
             
         else:
             print("***no that command!***\n")

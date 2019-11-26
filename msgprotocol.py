@@ -21,7 +21,7 @@ class MsgProtocol(asyncio.Protocol):
             # print("dataSize < headSize!")
             return
         bodySize, = struct.unpack('<I',self.buf[:self.headSize])
-        #print("bodySize={}".format(bodySize))
+        # print("bodySize={}".format(bodySize))
         if len(self.buf) < self.headSize+bodySize:
             # print("message data not enougth!")
             return
@@ -33,7 +33,7 @@ class MsgProtocol(asyncio.Protocol):
         pass
 
     def connection_lost(self,exc):
-        print("connection lost exception:{}".format(exc))
+        # print("connection lost exception:{}".format(exc))
         if exc is not None:
             print("---exit EXCEPTION---")
             self.buf = bytes()

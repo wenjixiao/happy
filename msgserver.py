@@ -7,7 +7,7 @@ games = []
 
 class MsgServerProtocol(msgprotocol.MsgProtocol):
     def __init__(self):
-        msgprotocol.__init__(self)
+        msgprotocol.MsgProtocol.__init__(self)
         self.player = None
         
     def connection_made(self,transport):
@@ -16,7 +16,8 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
     def process_msg(self,bin):
         msg = message.Msg()
         msg.ParseFromString(bin)
-        print("get client msg:\n",msg)
+        print("--------")
+        print(msg)
         
         # login 
         if msg.type == message.MsgType.LOGIN:
@@ -28,11 +29,19 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
                 players.append(player)
             
             self.player = player
-        # logout    
-        elif msg.type == message.MsgType.Logout:
+        # logout
+        elif msg.type == message.MsgType.LOGOUT:
             players.remove(self.player)
-        
-        # self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+        # info
+        elif msg.type == message.MsgType.INFO:
+            msg = message.Msg()
+            msg.type = message.MsgType.PLAYERS_AND_GAMES
+            for player in players:
+                msg.players_and_games.players.add().CopyFrom(player)
+            for game in games:
+                msg.players_and_games.games.add().CopyFrom(game)
+                
+            self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
     
     def connection_lost(self,exc):
         msgprotocol.MsgProtocol.connection_lost(self,exc)
