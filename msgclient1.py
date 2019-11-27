@@ -5,9 +5,8 @@ import msgprotocol
 import message_pb2 as message
 
 class MsgClientProtocol(msgprotocol.MsgProtocol):
-    def __init__(self,on_con_lost,ui_obj):
+    def __init__(self,ui_obj):
         msgprotocol.MsgProtocol.__init__(self)
-        self.on_con_lost = on_con_lost
         self.ui_obj = ui_obj
     # override
     def connection_made(self,transport):
@@ -16,13 +15,11 @@ class MsgClientProtocol(msgprotocol.MsgProtocol):
     # override
     def connection_lost(self,exc):
         msgprotocol.MsgProtocol.connection_lost(self,exc)
-        self.on_con_lost.set_result(True)
         wx.CallAfter(self.ui_obj.connection_lost,exc)
     
     def process_msg(self,bin):
         msg = message.Msg()
         msg.ParseFromString(bin)
-        print(msg)
         wx.CallAfter(self.ui_obj.receive_msg,msg)
 
 class AsyncThread(threading.Thread):
@@ -39,21 +36,22 @@ class AsyncThread(threading.Thread):
         coro = self.inner_send_msg(msg)
         asyncio.run_coroutine_threadsafe(coro,self.loop)
         
+    async def dis_connect(self):
+        self.transport.close()
+        
     async def connect(self):
-        print("async thread begin ...")
-        on_con_lost = self.loop.create_future()
         self.transport,self.protocol = await self.loop.create_connection(
-            lambda: MsgClientProtocol(on_con_lost,self.ui_obj),'127.0.0.1',5678)
-        try:
-            await on_con_lost
-        finally:
-            transport.close()
-        print("async run ended")
+            lambda: MsgClientProtocol(self.ui_obj),'127.0.0.1',5678)
+        
+    def invoke_connect(self):
+        asyncio.run_coroutine_threadsafe(self.connect(),self.loop)
+        
+    def invoke_dis_connect(self):
+        asyncio.run_coroutine_threadsafe(self.dis_connect(),self.loop)
             
     def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.create_task(self.connect())
         self.loop.run_forever()
 
 # Bind(event, handler, source=None, id=wx.ID_ANY, id2=wx.ID_ANY)
@@ -98,8 +96,13 @@ class WeiqiClient(wx.Frame):
         if cmd == "logout":
             msg = message.Msg()
             msg.type = message.MsgType.LOGOUT
-            self.async_thread.send_msg(msg)
-            transport.close()
+            self.send_msg(msg)
+            
+        elif cmd == "connect":
+            self.async_thread.invoke_connect()
+            
+        elif cmd == "disconnect":
+            self.async_thread.invoke_dis_connect()
             
         elif cmd == "login":
             msg = message.Msg()
@@ -107,31 +110,32 @@ class WeiqiClient(wx.Frame):
             msg.login.pid = myline[1]
             msg.login.passwd = myline[2]
             
-            self.async_thread.send_msg(msg)
-            # transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+            self.send_msg(msg)
             
         elif cmd == "info":
-            # print(protocol.transport)
             msg = message.Msg()
             msg.type = message.MsgType.INFO
-            # print("transport is closed? ",transport.is_closing())
-            self.async_thread.send_msg(msg)
-            # transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+            self.send_msg(msg)
             
         else:
             print("***no that command!***\n")
+            
+        self.input_text.Clear()
         
     def receive_msg(self,msg):
-        print("received msg: %s" % msg)
-        self.input_text.Clear()
-        self.output_text.AppendText("\n")
-        self.output_text.AppendText(str(msg))
+        self.output_text.SetValue(str(msg))
     
     def connection_made(self):
         print("connection made")
         
     def connection_lost(self,exc):
         print("connection lost @ %s" % exc)
+    
+    def send_msg(self,msg):
+        if not self.async_thread.transport.is_closing():
+            self.async_thread.send_msg(msg)
+        else:
+            print("transport is closed!")
     
     def OnCloseWindow(self,event):
         self.Destroy()
