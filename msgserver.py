@@ -10,9 +10,16 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         msgprotocol.MsgProtocol.__init__(self)
         self.player = None
         
+    # override
     def connection_made(self,transport):
-        self.transport = transport
- 
+        msgprotocol.MsgProtocol.connection_made(self,transport)
+        pass
+    
+    # override
+    def connection_lost(self,exc):
+        msgprotocol.MsgProtocol.connection_lost(self,exc)
+        pass
+
     def process_msg(self,bin):
         msg = message.Msg()
         msg.ParseFromString(bin)
