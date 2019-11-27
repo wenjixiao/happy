@@ -1,4 +1,49 @@
 import wx
+import threading
+import asyncio
+import msgprotocol
+import message_pb2 as message
+
+class MsgClientProtocol(msgprotocol.MsgProtocol):
+    def __init__(self,on_con_lost,ui_obj):
+        self.on_con_lost = on_con_lost
+        self.ui_obj = ui_obj
+    # override
+    def connection_made(self,transport):
+        msgprotocol.MsgProtocol.connection_made(self,transport)
+        wx.CallAfter(self.ui_obj.connection_made())
+    # override
+    def connection_lost(self,exc):
+        msgprotocol.MsgProtocol.connection_lost(self,exc)
+        self.on_con_lost.set_result(True)
+        wx.CallAfter(self.ui_obj.connection_lost,exc)
+    
+    def process_msg(self,bin):
+        msg = message.Msg()
+        msg.ParseFromString(bin)
+        print(msg)
+        wx.CallAfter(self.ui_obj.receive_msg,msg)
+
+class AsyncThread(threading.Thread):
+    def __init__(self,ui_obj):
+        threading.Thread.__init__(self)
+        self.ui_obj = ui_obj
+    
+    async def inner_send_msg(self,msg):
+        self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+        
+    def send_msg(self,msg):
+        self.loop.call_soon_threadsafe(self.inner_send_msg,msg)
+        
+    def run(self):
+        self.loop = asyncio.get_running_loop()
+        on_con_lost = loop.create_future()
+        self.transport,self.protocol = await loop.create_connection(
+            lambda: MsgClientProtocol(on_con_lost,self.ui_obj),'127.0.0.1',5678)
+        try:
+            await on_con_lost
+        finally:
+            transport.close()
 
 # Bind(event, handler, source=None, id=wx.ID_ANY, id2=wx.ID_ANY)
 class WeiqiClient(wx.Frame):
@@ -7,6 +52,10 @@ class WeiqiClient(wx.Frame):
         self.InitUI()
         self.Centre()
         self.Show()
+        
+    def async_init(self):
+        self.async_thread = AsyncThread(self)
+        
     def InitUI(self):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -31,10 +80,20 @@ class WeiqiClient(wx.Frame):
 
     def on_run_button(self,event):
         myinput = self.input_text.GetValue()
+        
+        # here tell async loop to send msg 
+        self.async_thread.send_msg(msg)
+        
         self.input_text.Clear()
         self.output_text.AppendText("\n")
         self.output_text.AppendText(myinput)
         
+    def receive_msg(self,msg):
+        pass
+    
+    def connection_lost(self,exc):
+        pass
+    
     def OnCloseWindow(self,event):
         self.Destroy()
 
