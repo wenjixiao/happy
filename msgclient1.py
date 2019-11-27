@@ -75,7 +75,6 @@ class WeiqiClient(wx.Frame):
         self.output_text = wx.TextCtrl(panel,style = wx.TE_MULTILINE | wx.HSCROLL)
         self.run_button = wx.Button(panel,label = 'Run')
         
-        self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
         self.Bind(wx.EVT_BUTTON,self.on_run_button,source=self.run_button)
         self.Bind(wx.EVT_TEXT_ENTER,self.on_run_button,source=self.input_text)
     
@@ -93,12 +92,7 @@ class WeiqiClient(wx.Frame):
         myline = self.input_text.GetValue().split()
         cmd = myline[0]
         
-        if cmd == "logout":
-            msg = message.Msg()
-            msg.type = message.MsgType.LOGOUT
-            self.send_msg(msg)
-            
-        elif cmd == "connect":
+        if cmd == "connect":
             self.async_thread.invoke_connect()
             
         elif cmd == "disconnect":
@@ -135,11 +129,8 @@ class WeiqiClient(wx.Frame):
         if not self.async_thread.transport.is_closing():
             self.async_thread.send_msg(msg)
         else:
-            print("transport is closed!")
-    
-    def OnCloseWindow(self,event):
-        self.Destroy()
-
+            wx.MessageBox("connect is broken!")
+            
 if __name__ == '__main__':
     app = wx.App()
     WeiqiClient(None, title='*** weiqi client ***')

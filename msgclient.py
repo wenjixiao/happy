@@ -3,6 +3,8 @@ import msgprotocol
 import message_pb2 as message
 
 class MsgClientProtocol(msgprotocol.MsgProtocol):
+    def __init__(self):
+        msg.protocol.MsgProtocol.__init__(self)
     # override
     def connection_made(self,transport):
         msgprotocol.MsgProtocol.connection_made(self,transport)

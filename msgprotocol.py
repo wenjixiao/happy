@@ -36,7 +36,6 @@ class MsgProtocol(asyncio.Protocol):
         # print("connection lost exception:{}".format(exc))
         if exc is not None:
             print("---exit EXCEPTION---")
-            
             self.buf = bytes()
         else:
             print("---exit normal---")
