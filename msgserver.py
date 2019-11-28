@@ -5,7 +5,7 @@ import msgprotocol
 
 logging.basicConfig(level = logging.DEBUG)
 
-players_and_transports = []
+protos = [] # proto have player and transport attr
 games = []
 
 class MsgServerProtocol(msgprotocol.MsgProtocol):
@@ -15,9 +15,14 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         
     def leave(self):
         logging.debug("---leave invokded---")
-        global players_and_transports
-        players_and_transports = [t[0] for t in players_and_transports if t[0] != self.player]
-        self.player = None
+        if self.player is not None:
+            self.player = None
+            global protos
+            protos = [p for p in protos if self is not p]
+        else:
+            # because when we connect,we do nothing,so,now we do nothing
+            logging.debug("---connected,but not login.---")
+
 
     # override
     def connection_made(self,transport):
@@ -28,8 +33,7 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
     def connection_lost(self,exc):
         logging.debug("connection losted")
         msgprotocol.MsgProtocol.connection_lost(self,exc)
-        if self.player is not None:
-            self.leave()
+        self.leave()
             
     def process_msg(self,bin):
         msg = message.Msg()
@@ -42,11 +46,11 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
             player = message.Player()
             player.pid = msg.login.pid
             player.passwd = msg.login.passwd
+
+            self.player = player
             
-            players = [pt[0] for pt in players_and_transports]
-            if player not in players:
-                self.player = player
-                players_and_transports.append((self.player,self.transport))
+            if self not in protos:
+                protos.append(self)
             
         # logout
         elif msg.type == message.MsgType.LOGOUT:
@@ -56,8 +60,7 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         elif msg.type == message.MsgType.INFO:
             msg = message.Msg()
             msg.type = message.MsgType.PLAYERS_AND_GAMES
-            players = [pt[0] for pt in players_and_transports]
-            for player in players:
+            for player in [p.player for p in protos]:
                 msg.players_and_games.players.add().CopyFrom(player)
             for game in games:
                 msg.players_and_games.games.add().CopyFrom(game)
