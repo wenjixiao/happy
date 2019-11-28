@@ -14,18 +14,21 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         self.player = None
         
     def leave(self):
+        logging.debug("---leave invokded---")
         global players_and_transports
         players_and_transports = [t[0] for t in players_and_transports if t[0] != self.player]
         self.player = None
 
     # override
     def connection_made(self,transport):
+        logging.debug("connection maded")
         msgprotocol.MsgProtocol.connection_made(self,transport)
     
     # override
     def connection_lost(self,exc):
+        logging.debug("connection losted")
         msgprotocol.MsgProtocol.connection_lost(self,exc)
-        if exc is not None:
+        if self.player is not None:
             self.leave()
             
     def process_msg(self,bin):

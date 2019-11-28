@@ -1,9 +1,9 @@
-import wx
-import threading
 import asyncio
-import msgprotocol
-import message_pb2 as message
 import logging
+import message_pb2 as message
+import msgprotocol
+import threading
+import wx
 
 logging.basicConfig(level = logging.DEBUG)
 
