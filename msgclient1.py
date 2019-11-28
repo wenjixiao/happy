@@ -11,10 +11,12 @@ class MsgClientProtocol(msgprotocol.MsgProtocol):
     def __init__(self,ui_obj):
         msgprotocol.MsgProtocol.__init__(self)
         self.ui_obj = ui_obj
+        
     # override
     def connection_made(self,transport):
         msgprotocol.MsgProtocol.connection_made(self,transport)
         wx.CallAfter(self.ui_obj.connection_made)
+
     # override
     def connection_lost(self,exc):
         msgprotocol.MsgProtocol.connection_lost(self,exc)
@@ -39,12 +41,12 @@ class AsyncThread(threading.Thread):
         coro = self.inner_send_msg(msg)
         asyncio.run_coroutine_threadsafe(coro,self.loop)
         
-    async def dis_connect(self):
-        self.transport.close()
-        
     async def connect(self):
         self.transport,self.protocol = await self.loop.create_connection(
             lambda: MsgClientProtocol(self.ui_obj),'127.0.0.1',5678)
+        
+    async def dis_connect(self):
+        self.transport.close()
         
     def invoke_connect(self):
         asyncio.run_coroutine_threadsafe(self.connect(),self.loop)
@@ -65,6 +67,7 @@ class WeiqiClient(wx.Frame):
         self.async_init()
         self.Centre()
         self.Show()
+        self.async_thread.invoke_connect()
         
     def async_init(self):
         self.async_thread = AsyncThread(self)
@@ -78,6 +81,7 @@ class WeiqiClient(wx.Frame):
         self.output_text = wx.TextCtrl(panel,style = wx.TE_MULTILINE | wx.HSCROLL)
         self.run_button = wx.Button(panel,label = 'Run')
         
+        self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
         self.Bind(wx.EVT_BUTTON,self.on_run_button,source=self.run_button)
         self.Bind(wx.EVT_TEXT_ENTER,self.on_run_button,source=self.input_text)
     
@@ -90,6 +94,10 @@ class WeiqiClient(wx.Frame):
         vbox.Add(self.output_text,proportion=1,flag=wx.EXPAND | wx.LEFT | wx.BOTTOM | wx.RIGHT)
         
         panel.SetSizer(vbox)
+
+    def OnCloseWindow(self,event):
+        self.async_thread.invoke_dis_connect()
+        self.Destroy()
 
     def on_run_button(self,event):
         myline = self.input_text.GetValue().split()

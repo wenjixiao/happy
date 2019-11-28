@@ -1,7 +1,7 @@
 import asyncio
-import msgprotocol
-import message_pb2 as message
 import logging
+import message_pb2 as message
+import msgprotocol
 
 logging.basicConfig(level = logging.DEBUG)
 
@@ -15,7 +15,7 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         
     def leave(self):
         global players_and_transports
-        players_and_transports = list(filter(lambda pt: pt[0] != self.player,players_and_transports))
+        players_and_transports = [t[0] for t in players_and_transports if t[0] != self.player]
         self.player = None
 
     # override
@@ -40,7 +40,7 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
             player.pid = msg.login.pid
             player.passwd = msg.login.passwd
             
-            players = map(lambda pt: pt[0],players_and_transports)
+            players = [pt[0] for pt in players_and_transports]
             if player not in players:
                 self.player = player
                 players_and_transports.append((self.player,self.transport))
@@ -53,7 +53,7 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         elif msg.type == message.MsgType.INFO:
             msg = message.Msg()
             msg.type = message.MsgType.PLAYERS_AND_GAMES
-            players = map(lambda pt: pt[0],players_and_transports)
+            players = [pt[0] for pt in players_and_transports]
             for player in players:
                 msg.players_and_games.players.add().CopyFrom(player)
             for game in games:
