@@ -106,9 +106,13 @@ class WeiqiClient(wx.Frame):
             msg.type = message.MsgType.LOGIN
             msg.login.pid = myline[1]
             msg.login.passwd = myline[2]
-            
             self.send_msg(msg)
             
+        elif cmd == "logout":
+            msg = message.Msg()
+            msg.type = message.MsgType.LOGOUT
+            self.send_msg(msg)
+           
         elif cmd == "info":
             msg = message.Msg()
             msg.type = message.MsgType.INFO

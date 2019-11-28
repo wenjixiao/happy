@@ -14,7 +14,8 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         self.player = None
         
     def leave(self):
-        players_and_transports = filter(lambda pt: pt[0] != self.player,players_and_transports)
+        global players_and_transports
+        players_and_transports = list(filter(lambda pt: pt[0] != self.player,players_and_transports))
         self.player = None
 
     # override
@@ -39,12 +40,10 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
             player.pid = msg.login.pid
             player.passwd = msg.login.passwd
             
+            players = map(lambda pt: pt[0],players_and_transports)
             if player not in players:
-                players.append(player)
-            
-            self.player = player
-            
-            players_and_transports.append((self.player,self.transport))
+                self.player = player
+                players_and_transports.append((self.player,self.transport))
             
         # logout
         elif msg.type == message.MsgType.LOGOUT:
@@ -61,6 +60,9 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
                 msg.players_and_games.games.add().CopyFrom(game)
                 
             self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+            
+        else:
+            logging.info("not support the type msg now")
     
 async def main():
     loop = asyncio.get_running_loop()
