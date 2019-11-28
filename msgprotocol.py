@@ -1,5 +1,6 @@
 import asyncio
 import struct
+import logging
 
 def packMsg(bin):
     header = struct.pack('I',len(bin))
@@ -18,12 +19,12 @@ class MsgProtocol(asyncio.Protocol):
     def data_received(self,data):
         self.buf += data
         if len(self.buf) < self.headSize:
-            # print("dataSize < headSize!")
+            logging.debug("dataSize < headSize!")
             return
         bodySize, = struct.unpack('<I',self.buf[:self.headSize])
-        # print("bodySize={}".format(bodySize))
+        logging.debug("bodySize={}".format(bodySize))
         if len(self.buf) < self.headSize+bodySize:
-            # print("message data not enougth!")
+            logging.debug("message data not enougth!")
             return
         bin = self.buf[self.headSize:self.headSize+bodySize]
         self.process_msg(bin)
@@ -35,7 +36,7 @@ class MsgProtocol(asyncio.Protocol):
     def connection_lost(self,exc):
         # print("connection lost exception:{}".format(exc))
         if exc is not None:
-            print("---exit EXCEPTION---")
+            logging.info("---exit EXCEPTION---")
             self.buf = bytes()
         else:
-            print("---exit normal---")
+            logging.info("---exit normal---")

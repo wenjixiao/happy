@@ -3,6 +3,9 @@ import threading
 import asyncio
 import msgprotocol
 import message_pb2 as message
+import logging
+
+logging.basicConfig(level = logging.DEBUG)
 
 class MsgClientProtocol(msgprotocol.MsgProtocol):
     def __init__(self,ui_obj):
@@ -28,11 +31,11 @@ class AsyncThread(threading.Thread):
         self.ui_obj = ui_obj
     
     async def inner_send_msg(self,msg):
-        print("inner_send_msg runned")
+        logging.debug("inner_send_msg runned")
         self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
         
     def send_msg(self,msg):
-        print("in send_msg")
+        logging.debug("in send_msg")
         coro = self.inner_send_msg(msg)
         asyncio.run_coroutine_threadsafe(coro,self.loop)
         
@@ -112,7 +115,7 @@ class WeiqiClient(wx.Frame):
             self.send_msg(msg)
             
         else:
-            print("***no that command!***\n")
+            logging.info("***no that command!***\n")
             
         self.input_text.Clear()
         
@@ -120,10 +123,10 @@ class WeiqiClient(wx.Frame):
         self.output_text.SetValue(str(msg))
     
     def connection_made(self):
-        print("connection made")
+        logging.debug("connection made")
         
     def connection_lost(self,exc):
-        print("connection lost @ %s" % exc)
+        logging.debug("connection lost @ %s" % exc)
     
     def send_msg(self,msg):
         if not self.async_thread.transport.is_closing():

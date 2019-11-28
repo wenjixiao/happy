@@ -1,8 +1,11 @@
 import asyncio
 import msgprotocol
 import message_pb2 as message
+import logging
 
-players = []
+logging.basicConfig(level = logging.DEBUG)
+
+players_and_transports = []
 games = []
 
 class MsgServerProtocol(msgprotocol.MsgProtocol):
@@ -10,21 +13,25 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         msgprotocol.MsgProtocol.__init__(self)
         self.player = None
         
+    def leave(self):
+        players_and_transports = filter(lambda pt: pt[0] != self.player,players_and_transports)
+        self.player = None
+
     # override
     def connection_made(self,transport):
         msgprotocol.MsgProtocol.connection_made(self,transport)
-        pass
     
     # override
     def connection_lost(self,exc):
         msgprotocol.MsgProtocol.connection_lost(self,exc)
-        pass
-
+        if exc is not None:
+            self.leave()
+            
     def process_msg(self,bin):
         msg = message.Msg()
         msg.ParseFromString(bin)
-        print("--------")
-        print(msg)
+        
+        logging.debug(msg)
         
         # login 
         if msg.type == message.MsgType.LOGIN:
@@ -36,22 +43,24 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
                 players.append(player)
             
             self.player = player
+            
+            players_and_transports.append((self.player,self.transport))
+            
         # logout
         elif msg.type == message.MsgType.LOGOUT:
-            players.remove(self.player)
+            self.leave()
+            
         # info
         elif msg.type == message.MsgType.INFO:
             msg = message.Msg()
             msg.type = message.MsgType.PLAYERS_AND_GAMES
+            players = map(lambda pt: pt[0],players_and_transports)
             for player in players:
                 msg.players_and_games.players.add().CopyFrom(player)
             for game in games:
                 msg.players_and_games.games.add().CopyFrom(game)
                 
             self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
-    
-    def connection_lost(self,exc):
-        msgprotocol.MsgProtocol.connection_lost(self,exc)
     
 async def main():
     loop = asyncio.get_running_loop()
