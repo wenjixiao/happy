@@ -2,6 +2,7 @@ import asyncio
 import logging
 import message_pb2 as message
 import msgprotocol
+import msgdb
 
 logging.basicConfig(level = logging.DEBUG)
 
@@ -20,6 +21,7 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
             global protos
             protos = [p for p in protos if self is not p]
         else:
+            # connected but not login.
             # because when we connect,we do nothing,so,now we do nothing
             logging.debug("---connected,but not login.---")
 
@@ -43,15 +45,29 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         
         # login 
         if msg.type == message.MsgType.LOGIN:
-            player = message.Player()
-            player.pid = msg.login.pid
-            player.passwd = msg.login.passwd
+            player = msgdb.get_player(msg.login.pid,msg.login.passwd)
+            if player is not None:
+                logging.debug("---login ok!---")
+                self.player = player
+                if self not in protos:
+                    protos.append(self)
 
-            self.player = player
-            
-            if self not in protos:
-                protos.append(self)
-            
+                msg = message.Msg()
+                msg.type = message.MsgType.LOGIN_OK
+
+                msg.login_ok.player.CopyFrom(self.player)
+                for myp in  [p.player for p in protos]:
+                    msg.login_ok.data.players.add().CopyFrom(myp)
+                for game in games:
+                    msg.login_ok.data.games.add().CopyFrom(game)
+                self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+
+            else:
+                logging.debug("---login error!---")
+                msg = message.Msg()
+                msg.type = message.MsgType.LOGIN_FAIL
+                self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+
         # logout
         elif msg.type == message.MsgType.LOGOUT:
             self.leave()
@@ -59,11 +75,11 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         # info
         elif msg.type == message.MsgType.INFO:
             msg = message.Msg()
-            msg.type = message.MsgType.PLAYERS_AND_GAMES
+            msg.type = message.MsgType.DATA
             for player in [p.player for p in protos]:
-                msg.players_and_games.players.add().CopyFrom(player)
+                msg.data.players.add().CopyFrom(player)
             for game in games:
-                msg.players_and_games.games.add().CopyFrom(game)
+                msg.data.games.add().CopyFrom(game)
                 
             self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
             

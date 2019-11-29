@@ -15,12 +15,12 @@ class MsgClientProtocol(msgprotocol.MsgProtocol):
     # override
     def connection_made(self,transport):
         msgprotocol.MsgProtocol.connection_made(self,transport)
-        wx.CallAfter(self.ui_obj.connection_made)
+        wx.CallAfter(self.ui_obj.connection_made_callback)
 
     # override
     def connection_lost(self,exc):
         msgprotocol.MsgProtocol.connection_lost(self,exc)
-        wx.CallAfter(self.ui_obj.connection_lost,exc)
+        wx.CallAfter(self.ui_obj.connection_lost_callback,exc)
     
     def process_msg(self,bin):
         msg = message.Msg()
@@ -63,22 +63,29 @@ class AsyncThread(threading.Thread):
 class WeiqiClient(wx.Frame):
     def __init__(self, parent, title):
         super(WeiqiClient, self).__init__(parent, title=title, size=(600, 400))
-        self.InitUI()
+        self.init()
+        self.init_ui()
         self.async_init()
         self.Centre()
         self.Show()
         self.async_thread.invoke_connect()
+
+    def init(self):
+        self.player = None
+        self.players = []
+        self.games = []
         
     def async_init(self):
         self.async_thread = AsyncThread(self)
         self.async_thread.start()
         
-    def InitUI(self):
+    def init_ui(self):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         self.input_text = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
-        self.output_text = wx.TextCtrl(panel,style = wx.TE_MULTILINE | wx.HSCROLL)
+        self.output_text = wx.TextCtrl(panel,
+            style = wx.TE_MULTILINE | wx.HSCROLL)
         self.run_button = wx.Button(panel,label = 'Run')
         
         self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
@@ -91,7 +98,8 @@ class WeiqiClient(wx.Frame):
         
         vbox = wx.BoxSizer(wx.VERTICAL)
         vbox.Add(hbox,proportion=0,flag=wx.EXPAND | wx.ALL)
-        vbox.Add(self.output_text,proportion=1,flag=wx.EXPAND | wx.LEFT | wx.BOTTOM | wx.RIGHT)
+        vbox.Add(self.output_text,proportion=1,
+            flag=wx.EXPAND | wx.LEFT | wx.BOTTOM | wx.RIGHT)
         
         panel.SetSizer(vbox)
 
@@ -132,12 +140,20 @@ class WeiqiClient(wx.Frame):
         self.input_text.Clear()
         
     def receive_msg(self,msg):
-        self.output_text.SetValue(str(msg))
+        if msg.type == message.MsgType.LOGIN_OK:
+            self.player = msg.login_ok.player
+            self.players = msg.login_ok.data.players
+            self.games = msg.login_ok.data.games
+            self.output_text.SetValue(str(msg))
+        elif msg.type == message.MsgType.LOGIN_FAIL:
+            wx.MessageBox("login failed")
+        elif msg.type == message.MsgType.DATA:
+            self.output_text.SetValue(str(msg))
     
-    def connection_made(self):
+    def connection_made_callback(self):
         logging.debug("connection made")
         
-    def connection_lost(self,exc):
+    def connection_lost_callback(self,exc):
         logging.debug("connection lost @ %s" % exc)
     
     def send_msg(self,msg):
