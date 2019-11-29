@@ -63,14 +63,14 @@ class AsyncThread(threading.Thread):
 class WeiqiClient(wx.Frame):
     def __init__(self, parent, title):
         super(WeiqiClient, self).__init__(parent, title=title, size=(600, 400))
-        self.init()
+        self.init_data()
         self.init_ui()
         self.async_init()
         self.Centre()
         self.Show()
         self.async_thread.invoke_connect()
 
-    def init(self):
+    def init_data(self):
         self.player = None
         self.players = []
         self.games = []
@@ -108,15 +108,27 @@ class WeiqiClient(wx.Frame):
         self.Destroy()
 
     def on_run_button(self,event):
+        self.output_text.Clear()
         myline = self.input_text.GetValue().split()
         cmd = myline[0]
         
-        if cmd == "connect":
-            self.async_thread.invoke_connect()
-            
-        elif cmd == "disconnect":
-            self.async_thread.invoke_dis_connect()
-            
+        if cmd == "client_data":
+            self.output_text.Clear()
+            self.output_text.AppendText("----")
+            self.output_text.AppendText("\n")
+            self.output_text.AppendText(str(self.player))
+            self.output_text.AppendText("\n")
+            self.output_text.AppendText(str(self.players))
+            self.output_text.AppendText("\n")
+            self.output_text.AppendText(str(self.games))
+            self.output_text.AppendText("\n")
+            self.output_text.AppendText("----")
+
+        elif cmd == "server_data":
+            msg = message.Msg()
+            msg.type = message.MsgType.DATA
+            self.send_msg(msg)
+
         elif cmd == "login":
             msg = message.Msg()
             msg.type = message.MsgType.LOGIN
@@ -125,13 +137,9 @@ class WeiqiClient(wx.Frame):
             self.send_msg(msg)
             
         elif cmd == "logout":
+            self.init_data()
             msg = message.Msg()
             msg.type = message.MsgType.LOGOUT
-            self.send_msg(msg)
-           
-        elif cmd == "info":
-            msg = message.Msg()
-            msg.type = message.MsgType.INFO
             self.send_msg(msg)
             
         else:
@@ -151,7 +159,7 @@ class WeiqiClient(wx.Frame):
             self.output_text.SetValue(str(msg))
     
     def connection_made_callback(self):
-        logging.debug("connection made")
+        logging.debug("----connection made----")
         
     def connection_lost_callback(self,exc):
         logging.debug("connection lost @ %s" % exc)

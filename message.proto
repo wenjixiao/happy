@@ -53,10 +53,9 @@ enum MsgType {
     LOGIN = 0;
     LOGOUT = 1;
     HAND = 2;
-    INFO = 3;
-    DATA = 4;
-    LOGIN_OK = 5;
-    LOGIN_FAIL = 6;
+    DATA = 3;
+    LOGIN_OK = 4;
+    LOGIN_FAIL = 5;
 }
 
 //------------------------------------------------
@@ -67,10 +66,9 @@ message Msg{
         Login login = 2;
         Logout logout = 3;
         Hand hand = 4;
-        Info info = 5;
-        Data data = 6;
-        LoginOk login_ok = 7;
-        LoginFail login_fail = 8;
+        Data data = 5;
+        LoginOk login_ok = 6;
+        LoginFail login_fail = 7;
     }
 }
 
@@ -88,9 +86,10 @@ message LoginFail {}
 
 message Logout {}
 
-message Hand {
-    int32 gid = 1;
-    Stone stone = 2;
+
+message Data {
+    repeated Player players = 1;
+    repeated Game games = 2;
 }
 
 message CreateGame {
@@ -98,9 +97,8 @@ message CreateGame {
     repeated Player players = 2;
 }
 
-message Info { }
-
-message Data {
-    repeated Player players = 1;
-    repeated Game games = 2;
+message Hand {
+    int32 gid = 1;
+    Stone stone = 2;
 }
+

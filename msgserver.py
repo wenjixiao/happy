@@ -13,7 +13,10 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
     def __init__(self):
         msgprotocol.MsgProtocol.__init__(self)
         self.player = None
-        
+
+    def send_msg(self,msg):
+        self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+
     def leave(self):
         logging.debug("---leave invokded---")
         if self.player is not None:
@@ -25,7 +28,6 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
             # because when we connect,we do nothing,so,now we do nothing
             logging.debug("---connected,but not login.---")
 
-
     # override
     def connection_made(self,transport):
         logging.debug("connection maded")
@@ -36,6 +38,13 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         logging.debug("connection losted")
         msgprotocol.MsgProtocol.connection_lost(self,exc)
         self.leave()
+
+    def make_data(self,data_parent):
+        players = [p.player for p in protos]
+        for p in players:
+            data_parent.data.players.add().CopyFrom(p)
+        for g in games:
+            data_parent.data.games.add().CopyFrom(g)
             
     def process_msg(self,bin):
         msg = message.Msg()
@@ -47,6 +56,9 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
         if msg.type == message.MsgType.LOGIN:
             player = msgdb.get_player(msg.login.pid,msg.login.passwd)
             if player is not None:
+                # clear the old player infomation,so we can change my role free
+                self.leave()
+
                 logging.debug("---login ok!---")
                 self.player = player
                 if self not in protos:
@@ -56,32 +68,26 @@ class MsgServerProtocol(msgprotocol.MsgProtocol):
                 msg.type = message.MsgType.LOGIN_OK
 
                 msg.login_ok.player.CopyFrom(self.player)
-                for myp in  [p.player for p in protos]:
-                    msg.login_ok.data.players.add().CopyFrom(myp)
-                for game in games:
-                    msg.login_ok.data.games.add().CopyFrom(game)
-                self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+                self.make_data(msg.login_ok)
+                self.send_msg(msg)
 
             else:
                 logging.debug("---login error!---")
                 msg = message.Msg()
                 msg.type = message.MsgType.LOGIN_FAIL
-                self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+                self.send_msg(msg)
 
         # logout
         elif msg.type == message.MsgType.LOGOUT:
             self.leave()
             
-        # info
-        elif msg.type == message.MsgType.INFO:
+        # server data
+        elif msg.type == message.MsgType.DATA:
             msg = message.Msg()
             msg.type = message.MsgType.DATA
-            for player in [p.player for p in protos]:
-                msg.data.players.add().CopyFrom(player)
-            for game in games:
-                msg.data.games.add().CopyFrom(game)
-                
-            self.transport.write(msgprotocol.packMsg(msg.SerializeToString()))
+            players = [p.player for p in protos]
+            self.make_data(msg)
+            self.send_msg(msg)
             
         else:
             logging.info("not support the type msg now")
