@@ -1,4 +1,7 @@
+package main
+
 import (
+	"encoding/json"
 	"binary"
 	"bytes"
 	"fmt"
@@ -6,13 +9,44 @@ import (
 	"net"
 )
 
-const HeaderSize = 4
+const (
+	HeaderSize = 4
+	// msg types
+	LOGIN = 1
+)
 
-type Msg {}
+type Login struct {
+	Pid string `json:"pid"`
+	Passwd string `json:"passwd"`
+}
 
-func Marshal() []byte {}
+type Logout struct {
+	Pid string `json:"pid"`
+}
 
-func Unmarshal(bin []byte) Msg {}
+type Msg struct {
+	Name string `json:"name"`
+	Type int    `json:"type"`
+	Login *Login `json:"login,omitempty"`
+	Logout *Logout `json:"logout,omitempty"`
+}
+
+func Marshal(msg Msg) []byte {
+	bin,err:= json.Marshal(msg)
+	if err != nil {
+		log.Printf("marshal error: %s\n",err)
+	}
+	return bin
+}
+
+func Unmarshal(bin []byte) Msg {
+	mymsg := Msg{}
+	err := json.Unmarshal(bin,&mymsg)
+	if err != nil {
+		log.Printf("unmarshal error: %s\n",err)
+	}
+	return mymsg
+}
 
 func Listen(){
 	listener, err := net.Listen("tcp", ":5678")
@@ -32,7 +66,7 @@ func Listen(){
 func HandleConn(conn net.Conn) {
 	defer conn.Close()
 
-	const MSG_BUF_LEN = 1024 * 10 //10KB 
+	const MSG_BUF_LEN = 1024 * 100 //10KB 
 	const READ_BUF_LEN = 1024       //1KB
 
 	// log.Printf("Client: %s\n", conn.RemoteAddr())
