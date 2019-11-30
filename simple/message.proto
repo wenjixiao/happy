@@ -1,0 +1,106 @@
+syntax="proto3";
+
+package pb;
+
+enum StoneColor {
+    WHITE = 0;
+    BLACK = 1;
+}
+
+enum WhoFirst {
+    YOU = 0;
+    ME = 1;
+    RANDOM = 3;
+}
+
+//------------------------------------------------
+
+message Stone {
+    StoneColor color = 1;
+    int32 x = 2;
+    int32 y = 3;
+}
+
+message Game {
+    int32 gid = 1;
+    repeated Stone stones = 2;
+    repeated Player players = 3;
+    repeated Player watchers = 4;
+    repeated Clock clockes = 5;
+    Proto proto = 6;
+}
+
+message Player {
+    string pid = 1;
+    string level = 2;
+    string passwd = 3;
+}
+
+message Clock {
+    int32 bao_liu = 1;
+    int32 du_miao = 2;
+    int32 jin_ji_ci_shu = 3;
+    int32 jin_ji_mei_ci = 4;
+}
+
+message Proto {
+    int32 rang_zi = 1;
+    float tie_mu = 2;
+    WhoFirst who_first = 3;
+}
+
+//------------------------------------------------
+
+enum MsgType {
+    LOGIN = 0;
+    LOGOUT = 1;
+    HAND = 2;
+    DATA = 3;
+    LOGIN_OK = 4;
+    LOGIN_FAIL = 5;
+}
+
+//------------------------------------------------
+
+message Msg{
+    MsgType type = 1;
+    oneof union {
+        Login login = 2;
+        Logout logout = 3;
+        Hand hand = 4;
+        Data data = 5;
+        LoginOk login_ok = 6;
+        LoginFail login_fail = 7;
+    }
+}
+
+message Login {
+    string pid = 1;
+    string passwd = 2;
+}
+
+message LoginOk {
+    Player player = 1;
+    Data data = 2;
+}
+
+message LoginFail {}
+
+message Logout {}
+
+
+message Data {
+    repeated Player players = 1;
+    repeated Game games = 2;
+}
+
+message CreateGame {
+    Proto proto = 1;
+    repeated Player players = 2;
+}
+
+message Hand {
+    int32 gid = 1;
+    Stone stone = 2;
+}
+
