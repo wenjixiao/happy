@@ -3,13 +3,14 @@ import logging
 import threading
 import wx
 import pb.message_pb2 as pb
+import struct
 
 logging.basicConfig(level = logging.DEBUG)
 host = '127.0.0.1'
 port = 5678
 
 class MsgProtocol(asyncio.Protocol):
-    def __init__(self,ui_obj,serializer):
+    def __init__(self,ui_obj):
         asyncio.Protocol.__init__(self)
         self.bufSize = 1024
         self.buf = bytes()
@@ -22,7 +23,7 @@ class MsgProtocol(asyncio.Protocol):
         wx.CallAfter(self.ui_obj.connection_made_callback)
 
     def send_msg(self,msg):
-        self.transport.write(add_head(msg.SerializeToString()))
+        self.transport.write(MsgProtocol.add_head(msg.SerializeToString()))
 
     def add_head(bin):
         header = struct.pack('I',len(bin))
@@ -69,18 +70,17 @@ class AsyncThread(threading.Thread):
         coro = self.inner_send_msg(msg)
         asyncio.run_coroutine_threadsafe(coro,self.loop)
         
-    async def connect(self):
-        self.transport,self.protocol = 
-            await self.loop.create_connection(lambda: MsgProtocol(self.ui_obj),host,port)
-        
-    async def dis_connect(self):
+    async def inner_connect(self):
+        self.transport,self.protocol = await self.loop.create_connection(lambda: MsgProtocol(self.ui_obj),host,port)
+
+    async def inner_dis_connect(self):
         self.transport.close()
         
     def connect(self):
-        asyncio.run_coroutine_threadsafe(self.connect(),self.loop)
+        asyncio.run_coroutine_threadsafe(self.inner_connect(),self.loop)
         
     def dis_connect(self):
-        asyncio.run_coroutine_threadsafe(self.dis_connect(),self.loop)
+        asyncio.run_coroutine_threadsafe(self.inner_dis_connect(),self.loop)
             
     def run(self):
         self.loop = asyncio.new_event_loop()
@@ -132,10 +132,17 @@ class BasicClient(wx.Frame):
         cmd = myline[0]
         
         if cmd == "connect":
-            self.ui_obj.connect()
+            self.async_thread.connect()
 
         elif cmd == "dis_connect":
-            self.ui_obj.dis_connect()
+            self.async_thread.dis_connect()
+
+        elif cmd == "login":
+            msg = pb.Msg()
+            msg.login.pid = myline[1]
+            msg.login.passwd = myline[2]
+
+            self.send_msg(msg)
 
         else:
             logging.info("***no that command!***\n")
@@ -143,7 +150,8 @@ class BasicClient(wx.Frame):
         self.input_text.Clear()
         
     def msg_received(self,msg):
-        pass
+        print("=========received==========")
+        print(msg)
     
     def send_msg(self,msg):
         if not self.async_thread.transport.is_closing():

@@ -3,11 +3,11 @@ package main
 import (
 	"github.com/golang/protobuf/proto"
 	"./pb"
-	"binary"
+	"encoding/binary"
 	"bytes"
-	"fmt"
 	"log"
 	"net"
+	"io"
 )
 
 const (
@@ -53,7 +53,6 @@ func HandleConn(conn net.Conn) {
 			}
 			break
 		}
-
 		_, err = msgBuf.Write(readBuf[:n])
 
 		if err != nil {
@@ -75,11 +74,12 @@ func HandleConn(conn net.Conn) {
 			}
 			//has head,now read body
 			if bodyLen > 0 && msgBuf.Len() >= bodyLen {
-				mymsg,err := proto.Unmarshal(msgBuf.Next(bodyLen))
+				msg := &pb.Msg{}
+				err := proto.Unmarshal(msgBuf.Next(bodyLen), msg)
 				if err != nil {
 					log.Fatalf("protobuf Unmarshal error: %s\n",err)
 				}
-				ProcessMsg(mymsg)
+				ProcessMsg(conn,msg)
 				bodyLen = 0
 			} else {
 				//msgBuf.Len() < bodyLen ,one msg receiving is not complete
@@ -90,11 +90,9 @@ func HandleConn(conn net.Conn) {
 	}
 }
 
-func ProcessMsg(msg Msg) {
-	switch(msg.Type) {
-	case LOGIN:
-	case LOGOUT:
-	}
+func ProcessMsg(conn net.Conn,msg *pb.Msg) {
+	log.Println(msg)
+	SendMsg(conn,msg)
 }
 
 func AddHeader(msgBytes []byte) []byte {
@@ -103,7 +101,7 @@ func AddHeader(msgBytes []byte) []byte {
 	return append(head, msgBytes...)
 }
 
-func SendMsg(conn net.Conn,msg Msg) {
+func SendMsg(conn net.Conn,msg *pb.Msg) {
 	data,err := proto.Marshal(msg)
 	if err != nil {
 		log.Fatalf("protobuf marshal error: %s\n",err)
@@ -112,4 +110,8 @@ func SendMsg(conn net.Conn,msg Msg) {
 	if err != nil {
 		log.Fatalf("write error: %s\n",err)
 	}
+}
+
+func main(){
+	Listen()
 }
