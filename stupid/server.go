@@ -15,8 +15,10 @@ const (
 )
 
 var sessions []*Session
+
 var addSessionChan chan *Session
 var removeSessionChan chan *Session
+var listSessionsChan chan *Session
 
 type Session struct {
 	Conn net.Conn
@@ -43,6 +45,15 @@ func Init(){
 	sessions = []*Session{}
 	addSessionChan = make(chan *Session,5)
 	removeSessionChan = make(chan *Session,5)
+	listSessionsChan = make(chan *Session,5)
+}
+
+func GetPlayers() []*pb.Player {
+	players := []*pb.Player{}
+	for _,session := range sessions{
+		players = append(players,session.Player)
+	}
+	return players
 }
 
 func StartService(){
@@ -53,6 +64,18 @@ func StartService(){
 			AddSession(session)
 		case session := <-removeSessionChan:
 			RemoveSession(session)
+		case session := <-listSessionsChan:
+			msg := &pb.Msg{
+				Type: pb.MsgType_DATA,
+				Union: &pb.Msg_Data{
+					&pb.Data{
+						Players: GetPlayers(),
+					},
+				},
+				
+			}
+			log.Println(session)
+			log.Println(msg)
 		}
 	}
 }
@@ -68,12 +91,15 @@ func Listen(){
 		if err != nil {
 			log.Fatal(err)
 		}
-		go HandleConn(conn)
+		session := &Session{
+			Conn: conn,
+		}
+		go HandleConn(session)
 	}
 }
 
-func HandleConn(conn net.Conn) {
-	defer conn.Close()
+func HandleConn(session *Session) {
+	defer session.Conn.Close()
 
 	const MSG_BUF_LEN = 1024 * 100 //10KB 
 	const READ_BUF_LEN = 1024       //1KB
@@ -87,7 +113,7 @@ func HandleConn(conn net.Conn) {
 	bodyLen := 0 //bodyLen is a flag,when readed head,but body'len is not enougth
 
 	for {
-		n, err := conn.Read(readBuf)
+		n, err := session.Conn.Read(readBuf)
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("---connection lost normal---")
@@ -122,7 +148,7 @@ func HandleConn(conn net.Conn) {
 				if err != nil {
 					log.Fatalf("protobuf Unmarshal error: %s\n",err)
 				}
-				ProcessMsg(conn,msg)
+				ProcessMsg(session,msg)
 				bodyLen = 0
 			} else {
 				//msgBuf.Len() < bodyLen ,one msg receiving is not complete
@@ -133,22 +159,20 @@ func HandleConn(conn net.Conn) {
 	}
 }
 
-func ProcessMsg(conn net.Conn,msg *pb.Msg) {
+func ProcessMsg(session *Session,msg *pb.Msg) {
 	log.Println(msg)
 	switch msg.GetType(){
 	case pb.MsgType_LOGIN:
 		login := msg.GetLogin()
-		player := &pb.Player{
+		session.Player = &pb.Player{
 			Pid: login.Pid,
 			Passwd: login.Passwd,
 		}
-		session := &Session{
-			Conn: conn,
-			Player: player,
-		}
 		addSessionChan <- session
+	case pb.MsgType_DATA:
+		listSessionsChan <- session
 	}
-	SendMsg(conn,msg)
+	SendMsg(session,msg)
 }
 
 func AddHeader(msgBytes []byte) []byte {
@@ -157,12 +181,12 @@ func AddHeader(msgBytes []byte) []byte {
 	return append(head, msgBytes...)
 }
 
-func SendMsg(conn net.Conn,msg *pb.Msg) {
+func SendMsg(session *Session,msg *pb.Msg) {
 	data,err := proto.Marshal(msg)
 	if err != nil {
 		log.Fatalf("protobuf marshal error: %s\n",err)
 	}
-	_,err = conn.Write(AddHeader(data))
+	_,err = session.Conn.Write(AddHeader(data))
 	if err != nil {
 		log.Fatalf("write error: %s\n",err)
 	}
