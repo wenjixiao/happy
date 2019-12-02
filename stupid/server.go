@@ -14,47 +14,50 @@ const (
 	HeaderSize = 4
 )
 
+var sessions []*Session
+var addSessionChan chan *Session
+var removeSessionChan chan *Session
+
 type Session struct {
 	Conn net.Conn
 	Player *pb.Player
 }
 
-type Server struct {
-	Sessions []*Session
-
-	AddSessionChan chan *Session
-	RemoveSessionChan chan *Session
+func AddSession(session *Session){
+	sessions = append(sessions,session)
 }
 
-func (server *Server) AddSession(session *Session){
-	server.Sessions = append(server.Sessions,session)
-}
-
-func (server *Server) RemoveSession(session *Session){
+func RemoveSession(session *Session){
 	var index int
 	var mysession *Session
-	sessions := server.Sessions
 	for index,mysession = range sessions {
 		if mysession == session {
 			break
 		}
 	}
 	copy(sessions[index:],sessions[index+1:])
-	server.Sessions = sessions[:len(sessions)-1]
+	sessions = sessions[:len(sessions)-1]
 }
 
-func (server *Server) Run(){
+func Init(){
+	sessions = []*Session{}
+	addSessionChan = make(chan *Session,5)
+	removeSessionChan = make(chan *Session,5)
+}
+
+func StartService(){
+	Init()
 	for {
 		select {
-		case session := <-server.AddSessionChan:
-			server.AddSession(session)
-		case session := <-server.RemoveSessionChan:
-			server.RemoveSession(session)
+		case session := <-addSessionChan:
+			AddSession(session)
+		case session := <-removeSessionChan:
+			RemoveSession(session)
 		}
 	}
 }
 
-func Listen(server *Server){
+func Listen(){
 	listener, err := net.Listen("tcp", ":5678")
 	defer listener.Close()
 	if err != nil {
@@ -65,11 +68,11 @@ func Listen(server *Server){
 		if err != nil {
 			log.Fatal(err)
 		}
-		go HandleConn(server,conn)
+		go HandleConn(conn)
 	}
 }
 
-func HandleConn(server *Server,conn net.Conn) {
+func HandleConn(conn net.Conn) {
 	defer conn.Close()
 
 	const MSG_BUF_LEN = 1024 * 100 //10KB 
@@ -119,7 +122,7 @@ func HandleConn(server *Server,conn net.Conn) {
 				if err != nil {
 					log.Fatalf("protobuf Unmarshal error: %s\n",err)
 				}
-				ProcessMsg(server,conn,msg)
+				ProcessMsg(conn,msg)
 				bodyLen = 0
 			} else {
 				//msgBuf.Len() < bodyLen ,one msg receiving is not complete
@@ -130,7 +133,7 @@ func HandleConn(server *Server,conn net.Conn) {
 	}
 }
 
-func ProcessMsg(server *Server,conn net.Conn,msg *pb.Msg) {
+func ProcessMsg(conn net.Conn,msg *pb.Msg) {
 	log.Println(msg)
 	switch msg.GetType(){
 	case pb.MsgType_LOGIN:
@@ -143,7 +146,7 @@ func ProcessMsg(server *Server,conn net.Conn,msg *pb.Msg) {
 			Conn: conn,
 			Player: player,
 		}
-		server.AddSessionChan <- session
+		addSessionChan <- session
 	}
 	SendMsg(conn,msg)
 }
@@ -167,6 +170,6 @@ func SendMsg(conn net.Conn,msg *pb.Msg) {
 
 
 func main(){
-	server := &Server{}
-	Listen(server)
+	go StartService()
+	Listen()
 }
