@@ -6,25 +6,27 @@ import pb.message_pb2 as pb
 import struct
 
 logging.basicConfig(level = logging.DEBUG)
+
 host = '127.0.0.1'
 port = 5678
 
 class MsgProtocol(asyncio.Protocol):
-    def __init__(self,ui_obj):
+    def __init__(self,uiObj):
         asyncio.Protocol.__init__(self)
         self.bufSize = 1024
         self.buf = bytes()
         self.headSize = 4
 
-        self.ui_obj = ui_obj
+        self.uiObj = uiObj
 
     def connection_made(self,transport):
         self.transport = transport
-        wx.CallAfter(self.ui_obj.connection_made_callback)
+        wx.CallAfter(self.uiObj.connection_made_callback)
 
     def send_msg(self,msg):
-        self.transport.write(MsgProtocol.add_head(msg.SerializeToString()))
+        self.transport.write(self.add_head(msg.SerializeToString()))
 
+    @staticmethod
     def add_head(bin):
         header = struct.pack('I',len(bin))
         return header+bin
@@ -43,7 +45,7 @@ class MsgProtocol(asyncio.Protocol):
 
         msg = pb.Msg()
         msg.ParseFromString(bin)
-        wx.CallAfter(self.ui_obj.msg_received,msg)
+        wx.CallAfter(self.uiObj.msg_received,msg)
 
         self.buf = self.buf[self.headSize+bodySize:]
 
@@ -54,12 +56,12 @@ class MsgProtocol(asyncio.Protocol):
             self.buf = bytes()
         else:
             logging.info("---exit normal---")
-        wx.CallAfter(self.ui_obj.connection_lost_callback,exc)
+        wx.CallAfter(self.uiObj.connection_lost_callback,exc)
 
 class AsyncThread(threading.Thread):
-    def __init__(self,ui_obj):
+    def __init__(self,uiObj):
         threading.Thread.__init__(self)
-        self.ui_obj = ui_obj
+        self.uiObj = uiObj
 
     async def inner_send_msg(self,msg):
         logging.debug("*coro* inner_send_msg runned")
@@ -71,7 +73,7 @@ class AsyncThread(threading.Thread):
         asyncio.run_coroutine_threadsafe(coro,self.loop)
         
     async def inner_connect(self):
-        self.transport,self.protocol = await self.loop.create_connection(lambda: MsgProtocol(self.ui_obj),host,port)
+        self.transport,self.protocol = await self.loop.create_connection(lambda: MsgProtocol(self.uiObj),host,port)
 
     async def inner_dis_connect(self):
         self.transport.close()
