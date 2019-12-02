@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 import wx
-import pb.message_pb2 as pb
+import pb.msg_pb2 as pb
 import struct
 
 logging.basicConfig(level = logging.DEBUG)
@@ -141,11 +141,17 @@ class BasicClient(wx.Frame):
 
         elif cmd == "login":
             msg = pb.Msg()
+            msg.type = pb.MsgType.LOGIN
             msg.login.pid = myline[1]
             msg.login.passwd = myline[2]
 
             self.send_msg(msg)
 
+        elif cmd == "data":
+            msg = pb.Msg()
+            msg.type = pb.MsgType.DATA
+            self.send_msg(msg)
+            
         else:
             logging.info("***no that command!***\n")
             
@@ -154,6 +160,7 @@ class BasicClient(wx.Frame):
     def msg_received(self,msg):
         print("=========received==========")
         print(msg)
+        self.output_text.SetValue(str(msg))
     
     def send_msg(self,msg):
         if not self.async_thread.transport.is_closing():

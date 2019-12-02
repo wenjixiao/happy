@@ -72,10 +72,8 @@ func StartService(){
 						Players: GetPlayers(),
 					},
 				},
-				
 			}
-			log.Println(session)
-			log.Println(msg)
+			SendMsg(session,msg)
 		}
 	}
 }
@@ -172,7 +170,6 @@ func ProcessMsg(session *Session,msg *pb.Msg) {
 	case pb.MsgType_DATA:
 		listSessionsChan <- session
 	}
-	SendMsg(session,msg)
 }
 
 func AddHeader(msgBytes []byte) []byte {
