@@ -12,21 +12,22 @@ import (
 
 const (
 	HeaderSize = 4
+
+	CMD_ADD_SESSION = 1;
+	CMD_REMOVE_SESSION = 2;
+	CMD_DATA =3;
+	CMD_INVITE = 4;
+	CMD_INVITE_ANSWER = 5;
 )
 
 // ------------------------------------------------------------
 
 var sessions []*Session = []*Session{}
 
-var addSessionChan chan *Session = make(chan *Session, 5)
-var removeSessionChan chan *Session = make(chan *Session, 5)
-var listSessionsChan chan *Session = make(chan *Session, 5)
-var inviteChan chan *InviteArg = make(chan *InviteArg, 5)
-
-type InviteArg struct {
-	Session *Session
-	Invite *pb.Invite
-}
+var cmdChan chan int = make(chan int,5)
+var sessionChan chan *Session = make(chan *Session,5)
+var inviteChan chan *pb.Invite = make(chan *pb.Invite,5)
+var inviteAnswerChan chan *pb.InviteAnswer = make(chan *pb.InviteAnswer,5)
 
 // ------------------------------------------------------------
 
@@ -63,15 +64,17 @@ func GetPlayers() (players []*pb.Player) {
 func Leave(session *Session) {
 	if session.Player != nil {
 		session.Player = nil
-		removeSessionChan <- session
+		cmdChan <- CMD_REMOVE_SESSION
+		sessionChan <- session
 	}
 }
 
 func StartServ() {
 	// begin to serv
 	for {
-		select {
-		case session := <-addSessionChan:
+		switch cmd := <-cmdChan; cmd {
+		case CMD_ADD_SESSION:
+			session := <- sessionChan
 			AddSession(session)
 			msg := &pb.Msg{
 				Type: pb.MsgType_LOGIN_OK,
@@ -86,10 +89,12 @@ func StartServ() {
 			}
 			SendMsg(session, msg)
 
-		case session := <-removeSessionChan:
+		case CMD_REMOVE_SESSION:
+			session := <- sessionChan
 			RemoveSession(session)
 
-		case session := <-listSessionsChan:
+		case CMD_DATA:
+			fromSession := <- sessionChan
 			msg := &pb.Msg{
 				Type: pb.MsgType_DATA,
 				Union: &pb.Msg_Data{
@@ -98,25 +103,34 @@ func StartServ() {
 					},
 				},
 			}
-			SendMsg(session, msg)
+			SendMsg(fromSession, msg)
 
-		case inviteArg := <-inviteChan:
+		case CMD_INVITE:
+			fromSession := <- sessionChan
+			invite := <- inviteChan
 			for _, session := range sessions {
-				if session.Player.Pid == inviteArg.Pid {
+				if session.Player.Pid == invite.Pid {
 					msg := &pb.Msg{
 						Type: pb.MsgType_INVITE,
 						Union: &pb.Msg_Invite{
 							&pb.Invite{
-								Pid: inviteArg.Session.Player.Pid,
-								Proto: inviteArg.Proto,
+								Pid: fromSession.Player.Pid,
+								Proto: invite.Proto,
 							},
 						},
 					}
 					SendMsg(session, msg)
 				}
 			}
+		case CMD_INVITE_ANSWER:
+			fromSession := <- sessionChan
+			inviteAnswer := <- inviteAnswerChan
+			if inviteAnswer.GetIsAgree() {
+				// here, we need create the game and tell players to play
+			}else{
+				// here, we need to notify the player your answer who invited you
+			}
 		}
-
 	}
 }
 
@@ -131,30 +145,27 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		}
 		if session.Player == nil {
 			session.Player = myplayer
-			addSessionChan <- session
+			cmdChan <- CMD_ADD_SESSION
+			sessionChan <- session
 		} else {
 			// relogin
 			session.Player = myplayer
 		}
 
 	case pb.MsgType_DATA:
-		listSessionsChan <- session
+		cmdChan <- CMD_DATA
+		sessionChan <- session
 
 	case pb.MsgType_LOGOUT:
 		Leave(session)
 
 	case pb.MsgType_INVITE:
-		inviteChan <- &InviteArg{
-			Session: session,
-			Invite: msg.GetInvite(),
-		}
+		cmdChan <- CMD_INVITE
+		inviteChan <- msg.GetInvite()
+
 	case pb.MsgType_INVITE_ANSWER:
-		inviteAnswer := msg.GetInviteAnswer()
-		if inviteAnswer.GetIsAgree() {
-			// here, we need create the game and tell players to play
-		}else{
-			// here, we need to notify the player your answer who invited you
-		}
+		cmdChan <- CMD_INVITE_ANSWER
+		inviteAnswerChan <- msg.GetInviteAnswer()
 	}
 }
 
