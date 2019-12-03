@@ -94,7 +94,10 @@ func Listen() {
 }
 
 func Leave(session *Session) {
-	RemoveSession(session)
+	if session.Player != nil {
+		session.Player = nil
+		removeSessionChan <- session
+	}
 }
 
 func HandleConn(session *Session) {
@@ -118,8 +121,10 @@ func HandleConn(session *Session) {
 				log.Println("---connection lost normal---")
 			} else {
 				log.Println("Read error: %s\n", err)
-				Leave(session)
 			}
+
+			Leave(session)
+
 			break
 		}
 		_, err = msgBuf.Write(readBuf[:n])
@@ -164,13 +169,21 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 	switch msg.GetType() {
 	case pb.MsgType_LOGIN:
 		login := msg.GetLogin()
-		session.Player = &pb.Player{
+		myplayer := &pb.Player{
 			Pid:    login.Pid,
 			Passwd: login.Passwd,
 		}
-		addSessionChan <- session
+		if session.Player == nil {
+			session.Player = myplayer
+			addSessionChan <- session
+		}else{
+			// relogin
+			session.Player = myplayer
+		}
 	case pb.MsgType_DATA:
 		listSessionsChan <- session
+	case pb.MsgType_LOGOUT:
+		Leave(session)
 	}
 }
 

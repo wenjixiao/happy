@@ -83,7 +83,7 @@ class AsyncThread(threading.Thread):
         
     def dis_connect(self):
         asyncio.run_coroutine_threadsafe(self.inner_dis_connect(),self.loop)
-            
+
     def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -144,7 +144,11 @@ class BasicClient(wx.Frame):
             msg.type = pb.MsgType.LOGIN
             msg.login.pid = myline[1]
             msg.login.passwd = myline[2]
+            self.send_msg(msg)
 
+        elif cmd == "logout":
+            msg = pb.Msg()
+            msg.type = pb.MsgType.LOGOUT
             self.send_msg(msg)
 
         elif cmd == "data":
