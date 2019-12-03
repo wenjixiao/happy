@@ -1,0 +1,15 @@
+1,this is sublime2 build go file config
+{
+	"cmd": ["go","build","$file"],
+	// .\gotest.go:12:44: duplicate argument person
+	"file_regex": "(.*):(\\d+):(\\d+):(.*)",
+	"selector": "source.go"
+}
+
+2,when i run to this line *without* import struct module,nothing happened!!!! not give me a error!
+	header = struct.pack('I',len(bin))
+
+3,how to install protoc's go plugin and go module,i forgeted!
+	a,put the protoc-gen-go to any exported path. (go get github.com/golang/protobuf/protoc-gen-go)
+	b,install protobuf's go module. (go get github.com/golang/protobuf/proto)
+	c,if can't find the protoc.exe,go to *github* and find protobuf,there have the realease version for windows!

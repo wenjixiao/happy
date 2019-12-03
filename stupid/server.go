@@ -54,6 +54,15 @@ func RemoveSession(session *Session) {
 	sessions = sessions[:len(sessions)-1]
 }
 
+func GetSession(pid string) *Session {
+	for _, session := range sessions {
+		if session.Player.Pid == pid {
+			return session
+		}
+	}
+	return nil
+}
+
 func GetPlayers() (players []*pb.Player) {
 	for _, session := range sessions {
 		players = append(players, session.Player)
@@ -67,6 +76,22 @@ func Leave(session *Session) {
 		cmdChan <- CMD_REMOVE_SESSION
 		sessionChan <- session
 	}
+}
+
+func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) (game *pb.Game) {
+	return
+}
+
+func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
+	whoFirst := proto.GetWhoFirst()
+	if whoFirst != pb.WhoFirst_RANDOM {
+		if whoFirst == pb.WhoFirst_ME {
+			proto.WhoFirst = pb.WhoFirst_YOU
+		} else {
+			proto.WhoFirst = pb.WhoFirst_ME
+		}
+	}
+	return proto
 }
 
 func StartServ() {
@@ -108,27 +133,43 @@ func StartServ() {
 		case CMD_INVITE:
 			fromSession := <- sessionChan
 			invite := <- inviteChan
-			for _, session := range sessions {
-				if session.Player.Pid == invite.Pid {
-					msg := &pb.Msg{
-						Type: pb.MsgType_INVITE,
-						Union: &pb.Msg_Invite{
-							&pb.Invite{
-								Pid: fromSession.Player.Pid,
-								Proto: invite.Proto,
-							},
+			
+			if session := GetSession(invite.Pid); session != nil {
+				msg := &pb.Msg{
+					Type: pb.MsgType_INVITE,
+					Union: &pb.Msg_Invite{
+						&pb.Invite{
+							Pid: fromSession.Player.Pid,
+							Proto: invite.Proto,
 						},
-					}
-					SendMsg(session, msg)
+					},
 				}
+				SendMsg(session, msg)
 			}
+
 		case CMD_INVITE_ANSWER:
 			fromSession := <- sessionChan
 			inviteAnswer := <- inviteAnswerChan
 			if inviteAnswer.GetIsAgree() {
 				// here, we need create the game and tell players to play
+				if session := GetSession(inviteAnswer.Pid); session != nil {
+					CreateGame(fromSession,session,inviteAnswer.Proto)
+				}
 			}else{
 				// here, we need to notify the player your answer who invited you
+				if session := GetSession(inviteAnswer.Pid); session != nil {
+					msg := &pb.Msg{
+						Type: pb.MsgType_INVITE_ANSWER,
+						Union: &pb.Msg_InviteAnswer{
+							&pb.InviteAnswer{
+								IsAgree: inviteAnswer.IsAgree,
+								Pid: fromSession.Player.Pid,
+								Proto: ExchangeWhoFirst(inviteAnswer.Proto),
+							},
+						},
+					}
+					SendMsg(session, msg)
+				}
 			}
 		}
 	}
