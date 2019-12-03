@@ -1,6 +1,6 @@
 1,this is sublime2 build go file config
 {
-	"cmd": ["go","build","$file"],
+	"cmd": ["go","build"],
 	// .\gotest.go:12:44: duplicate argument person
 	"file_regex": "(.*):(\\d+):(\\d+):(.*)",
 	"selector": "source.go"
