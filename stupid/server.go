@@ -25,8 +25,7 @@ var inviteChan chan *InviteArg = make(chan *InviteArg, 5)
 
 type InviteArg struct {
 	Session *Session
-	Pid     string
-	Proto *pb.Proto
+	Invite *pb.Invite
 }
 
 // ------------------------------------------------------------
@@ -145,11 +144,16 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		Leave(session)
 
 	case pb.MsgType_INVITE:
-		invite := msg.GetInvite()
 		inviteChan <- &InviteArg{
 			Session: session,
-			Pid:   invite.GetPid(),
-			Proto: invite.GetProto(),
+			Invite: msg.GetInvite(),
+		}
+	case pb.MsgType_INVITE_ANSWER:
+		inviteAnswer := msg.GetInviteAnswer()
+		if inviteAnswer.GetIsAgree() {
+			// here, we need create the game and tell players to play
+		}else{
+			// here, we need to notify the player your answer who invited you
 		}
 	}
 }

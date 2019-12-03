@@ -186,6 +186,9 @@ class BasicClient(wx.Frame):
         if msg.type == pb.MsgType.LOGIN_OK:
             self.player = msg.loginOk.player
             self.SetTitle("----{}----".format(self.player.pid))
+        elif msg.type == msg.MsgType.INVITE:
+            # show dialog,get yes or no,or change the proto to resend invite msg again
+            # if yes or no,send a invite_answer msg
         self.output_text.SetValue(str(msg))
     
     def send_msg(self,msg):

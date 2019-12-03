@@ -60,6 +60,7 @@ enum MsgType {
     LOGIN_OK = 4;
     LOGIN_FAILED = 5;
     INVITE = 6;
+    INVITE_ANSWER = 7;
 }
 
 //------------------------------------------------
@@ -74,6 +75,7 @@ message Msg{
         LoginOk loginOk = 6;
         LoginFailed loginFailed = 7;
         Invite invite = 8;
+        InviteAnswer inviteAnswer = 9;
     }
 }
 
