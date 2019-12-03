@@ -21,11 +21,12 @@ var sessions []*Session = []*Session{}
 var addSessionChan chan *Session = make(chan *Session, 5)
 var removeSessionChan chan *Session = make(chan *Session, 5)
 var listSessionsChan chan *Session = make(chan *Session, 5)
-var inviteChan chan *PidArg = make(chan *PidArg, 5)
+var inviteChan chan *InviteArg = make(chan *InviteArg, 5)
 
-type PidArg struct {
+type InviteArg struct {
 	Session *Session
 	Pid     string
+	Proto *pb.Proto
 }
 
 // ------------------------------------------------------------
@@ -100,14 +101,15 @@ func StartServ() {
 			}
 			SendMsg(session, msg)
 
-		case pidArg := <-inviteChan:
+		case inviteArg := <-inviteChan:
 			for _, session := range sessions {
-				if session.Player.Pid == pidArg.Pid {
+				if session.Player.Pid == inviteArg.Pid {
 					msg := &pb.Msg{
 						Type: pb.MsgType_INVITE,
 						Union: &pb.Msg_Invite{
 							&pb.Invite{
-								Pid: pidArg.Session.Player.Pid,
+								Pid: inviteArg.Session.Player.Pid,
+								Proto: inviteArg.Proto,
 							},
 						},
 					}
@@ -143,9 +145,11 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		Leave(session)
 
 	case pb.MsgType_INVITE:
-		inviteChan <- &PidArg{
+		invite := msg.GetInvite()
+		inviteChan <- &InviteArg{
 			Session: session,
-			Pid:     msg.GetInvite().Pid,
+			Pid:   invite.GetPid(),
+			Proto: invite.GetProto(),
 		}
 	}
 }

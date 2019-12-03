@@ -37,16 +37,17 @@ message Player {
 }
 
 message Clock {
-    int32 bao_liu = 1;
-    int32 du_miao = 2;
-    int32 jin_ji_ci_shu = 3;
-    int32 jin_ji_mei_ci = 4;
+    int32 baoLiu = 1;
+    int32 duMiao = 2;
+    int32 ciShu = 3;
+    int32 meiCi = 4;
 }
 
 message Proto {
-    int32 rang_zi = 1;
-    float tie_mu = 2;
-    WhoFirst who_first = 3;
+    int32 rangZi = 1;
+    float tieMu = 2;
+    WhoFirst whoFirst = 3;
+    Clock clock = 4;
 }
 
 //------------------------------------------------
@@ -90,15 +91,9 @@ message LoginFailed {}
 
 message Logout {}
 
-
 message Data {
     repeated Player players = 1;
     repeated Game games = 2;
-}
-
-message CreateGame {
-    Proto proto = 1;
-    repeated Player players = 2;
 }
 
 message Hand {
@@ -108,4 +103,11 @@ message Hand {
 
 message Invite {
     string pid = 1;
+    Proto proto = 2;
+}
+
+message InviteAnswer {
+    bool isAgree = 1;
+    string pid = 2;
+    Proto proto = 3;
 }

@@ -10,6 +10,18 @@ logging.basicConfig(level = logging.DEBUG)
 host = '127.0.0.1'
 port = 5678
 
+def getDefaultProto():
+    proto = pb.Proto()
+    proto.rangZi = 0
+    proto.tieMu = 6.5
+    proto.whoFirst = pb.WhoFirst.RANDOM
+    proto.clock.baoLiu = 20*60
+    proto.clock.duMiao = 30
+    proto.clock.ciShu = 3
+    proto.clock.meiCi = 60
+    return proto
+
+
 class MsgProtocol(asyncio.Protocol):
     def __init__(self,uiObj):
         asyncio.Protocol.__init__(self)
@@ -150,6 +162,7 @@ class BasicClient(wx.Frame):
             msg = pb.Msg()
             msg.type = pb.MsgType.INVITE
             msg.invite.pid = myline[1]
+            msg.invite.proto.CopyFrom(getDefaultProto())
             self.send_msg(msg)
 
         elif cmd == "logout":
