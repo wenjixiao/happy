@@ -14,15 +14,28 @@ const (
 	HeaderSize = 4
 )
 
-var sessions []*Session
-var addSessionChan chan *Session
-var removeSessionChan chan *Session
-var listSessionsChan chan *Session
+// ------------------------------------------------------------
+
+var sessions []*Session = []*Session{}
+
+var addSessionChan chan *Session = make(chan *Session, 5)
+var removeSessionChan chan *Session = make(chan *Session, 5)
+var listSessionsChan chan *Session = make(chan *Session, 5)
+var inviteChan chan *PidArg = make(chan *PidArg, 5)
+
+type PidArg struct {
+	Session *Session
+	Pid     string
+}
+
+// ------------------------------------------------------------
 
 type Session struct {
 	Conn   net.Conn
 	Player *pb.Player
 }
+
+// ------------------------------------------------------------
 
 func AddSession(session *Session) {
 	sessions = append(sessions, session)
@@ -47,19 +60,35 @@ func GetPlayers() (players []*pb.Player) {
 	return
 }
 
+func Leave(session *Session) {
+	if session.Player != nil {
+		session.Player = nil
+		removeSessionChan <- session
+	}
+}
+
 func StartServ() {
-	// init
-	sessions = []*Session{}
-	addSessionChan = make(chan *Session, 5)
-	removeSessionChan = make(chan *Session, 5)
-	listSessionsChan = make(chan *Session, 5)
 	// begin to serv
 	for {
 		select {
 		case session := <-addSessionChan:
 			AddSession(session)
+			msg := &pb.Msg{
+				Type: pb.MsgType_LOGIN_OK,
+				Union: &pb.Msg_LoginOk{
+					&pb.LoginOk{
+						Player: session.Player,
+						Data: &pb.Data{
+							Players: GetPlayers(),
+						},
+					},
+				},
+			}
+			SendMsg(session, msg)
+
 		case session := <-removeSessionChan:
 			RemoveSession(session)
+
 		case session := <-listSessionsChan:
 			msg := &pb.Msg{
 				Type: pb.MsgType_DATA,
@@ -70,9 +99,58 @@ func StartServ() {
 				},
 			}
 			SendMsg(session, msg)
+
+		case pidArg := <-inviteChan:
+			for _, session := range sessions {
+				if session.Player.Pid == pidArg.Pid {
+					msg := &pb.Msg{
+						Type: pb.MsgType_INVITE,
+						Union: &pb.Msg_Invite{
+							&pb.Invite{
+								Pid: pidArg.Session.Player.Pid,
+							},
+						},
+					}
+					SendMsg(session, msg)
+				}
+			}
+		}
+
+	}
+}
+
+func ProcessMsg(session *Session, msg *pb.Msg) {
+	log.Printf("Received msg: \n%s\n", msg)
+	switch msg.GetType() {
+	case pb.MsgType_LOGIN:
+		login := msg.GetLogin()
+		myplayer := &pb.Player{
+			Pid:    login.Pid,
+			Passwd: login.Passwd,
+		}
+		if session.Player == nil {
+			session.Player = myplayer
+			addSessionChan <- session
+		} else {
+			// relogin
+			session.Player = myplayer
+		}
+
+	case pb.MsgType_DATA:
+		listSessionsChan <- session
+
+	case pb.MsgType_LOGOUT:
+		Leave(session)
+
+	case pb.MsgType_INVITE:
+		inviteChan <- &PidArg{
+			Session: session,
+			Pid:     msg.GetInvite().Pid,
 		}
 	}
 }
+
+// ------------------------------------------------------------
 
 func Listen() {
 	listener, err := net.Listen("tcp", ":5678")
@@ -90,13 +168,6 @@ func Listen() {
 			Conn: conn,
 		}
 		go HandleConn(session)
-	}
-}
-
-func Leave(session *Session) {
-	if session.Player != nil {
-		session.Player = nil
-		removeSessionChan <- session
 	}
 }
 
@@ -164,29 +235,6 @@ func HandleConn(session *Session) {
 	}
 }
 
-func ProcessMsg(session *Session, msg *pb.Msg) {
-	log.Printf("Received msg: \n%s\n", msg)
-	switch msg.GetType() {
-	case pb.MsgType_LOGIN:
-		login := msg.GetLogin()
-		myplayer := &pb.Player{
-			Pid:    login.Pid,
-			Passwd: login.Passwd,
-		}
-		if session.Player == nil {
-			session.Player = myplayer
-			addSessionChan <- session
-		}else{
-			// relogin
-			session.Player = myplayer
-		}
-	case pb.MsgType_DATA:
-		listSessionsChan <- session
-	case pb.MsgType_LOGOUT:
-		Leave(session)
-	}
-}
-
 func AddHeader(msgBytes []byte) []byte {
 	head := make([]byte, HeaderSize)
 	binary.LittleEndian.PutUint32(head, uint32(len(msgBytes)))
@@ -200,9 +248,11 @@ func SendMsg(session *Session, msg *pb.Msg) {
 	}
 	_, err = session.Conn.Write(AddHeader(data))
 	if err != nil {
-		log.Fatalf("write error: %s\n", err)
+		log.Fatalf("Write error: %s\n", err)
 	}
 }
+
+// ------------------------------------------------------------
 
 func main() {
 	go StartServ()

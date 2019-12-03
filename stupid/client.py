@@ -146,6 +146,12 @@ class BasicClient(wx.Frame):
             msg.login.passwd = myline[2]
             self.send_msg(msg)
 
+        elif cmd == "invite":
+            msg = pb.Msg()
+            msg.type = pb.MsgType.INVITE
+            msg.invite.pid = myline[1]
+            self.send_msg(msg)
+
         elif cmd == "logout":
             msg = pb.Msg()
             msg.type = pb.MsgType.LOGOUT
@@ -164,6 +170,9 @@ class BasicClient(wx.Frame):
     def msg_received(self,msg):
         logging.info("=========received==========")
         logging.info(msg)
+        if msg.type == pb.MsgType.LOGIN_OK:
+            self.player = msg.loginOk.player
+            self.SetTitle("----{}----".format(self.player.pid))
         self.output_text.SetValue(str(msg))
     
     def send_msg(self,msg):

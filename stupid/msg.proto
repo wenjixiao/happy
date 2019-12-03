@@ -57,7 +57,8 @@ enum MsgType {
     HAND = 2;
     DATA = 3;
     LOGIN_OK = 4;
-    LOGIN_FAIL = 5;
+    LOGIN_FAILED = 5;
+    INVITE = 6;
 }
 
 //------------------------------------------------
@@ -69,8 +70,9 @@ message Msg{
         Logout logout = 3;
         Hand hand = 4;
         Data data = 5;
-        LoginOk login_ok = 6;
-        LoginFail login_fail = 7;
+        LoginOk loginOk = 6;
+        LoginFailed loginFailed = 7;
+        Invite invite = 8;
     }
 }
 
@@ -84,7 +86,7 @@ message LoginOk {
     Data data = 2;
 }
 
-message LoginFail {}
+message LoginFailed {}
 
 message Logout {}
 
@@ -104,3 +106,6 @@ message Hand {
     Stone stone = 2;
 }
 
+message Invite {
+    string pid = 1;
+}
