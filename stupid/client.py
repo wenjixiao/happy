@@ -158,8 +158,8 @@ class BasicClient(wx.Frame):
         self.input_text.Clear()
         
     def msg_received(self,msg):
-        print("=========received==========")
-        print(msg)
+        logging.info("=========received==========")
+        logging.info(msg)
         self.output_text.SetValue(str(msg))
     
     def send_msg(self,msg):
