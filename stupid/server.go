@@ -144,7 +144,6 @@ func StartServ() {
 		case CMD_INVITE:
 			fromSession := <- sessionChan
 			invite := <- inviteChan
-			
 			if session := GetSession(invite.Pid); session != nil {
 				msg := &pb.Msg{
 					Type: pb.MsgType_INVITE,
@@ -222,10 +221,12 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 
 	case pb.MsgType_INVITE:
 		cmdChan <- CMD_INVITE
+		sessionChan <- session
 		inviteChan <- msg.GetInvite()
 
 	case pb.MsgType_INVITE_ANSWER:
 		cmdChan <- CMD_INVITE_ANSWER
+		sessionChan <- session
 		inviteAnswerChan <- msg.GetInviteAnswer()
 	}
 }
