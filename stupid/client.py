@@ -4,23 +4,12 @@ import threading
 import wx
 import pb.msg_pb2 as pb
 import struct
+from proto_dialog import ProtoDialog
 
 logging.basicConfig(level = logging.DEBUG)
 
 host = '127.0.0.1'
 port = 5678
-
-def getDefaultProto():
-    proto = pb.Proto()
-    proto.rangZi = 0
-    proto.tieMu = 6.5
-    proto.whoFirst = pb.WhoFirst.RANDOM
-    proto.clock.baoLiu = 20*60
-    proto.clock.duMiao = 30
-    proto.clock.ciShu = 3
-    proto.clock.meiCi = 60
-    return proto
-
 
 class MsgProtocol(asyncio.Protocol):
     def __init__(self,uiObj):
@@ -159,11 +148,15 @@ class BasicClient(wx.Frame):
             self.send_msg(msg)
 
         elif cmd == "invite":
-            msg = pb.Msg()
-            msg.type = pb.MsgType.INVITE
-            msg.invite.pid = myline[1]
-            msg.invite.proto.CopyFrom(getDefaultProto())
-            self.send_msg(msg)
+            dialog = ProtoDialog(self,None)
+            result = dialog.ShowModal()
+            if result == wx.ID_OK:
+                msg = pb.Msg()
+                msg.type = pb.MsgType.INVITE
+                msg.invite.pid = myline[1]
+                msg.invite.proto.CopyFrom(dialog.getProto())
+                self.send_msg(msg)
+            dialog.Destroy()
 
         elif cmd == "logout":
             msg = pb.Msg()
@@ -189,6 +182,11 @@ class BasicClient(wx.Frame):
         elif msg.type == pb.MsgType.INVITE:
             # show dialog,get yes or no,or change the proto to resend invite msg again
             # if yes or no,send a invite_answer msg
+            pass
+        elif msg.type == pb.MsgType.INVITE_ANSWER:
+            # must be not agree
+            pass
+        elif msg.type == pb.MsgType.GAME:
             pass
         else:
             pass

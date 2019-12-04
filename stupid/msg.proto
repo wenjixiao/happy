@@ -10,7 +10,7 @@ enum StoneColor {
 enum WhoFirst {
     YOU = 0;
     ME = 1;
-    RANDOM = 3;
+    RANDOM = 2;
 }
 
 //------------------------------------------------

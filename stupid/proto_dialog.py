@@ -4,6 +4,17 @@ import pb.msg_pb2 as pb
 whoFirsts = [pb.WhoFirst.YOU,pb.WhoFirst.ME,pb.WhoFirst.RANDOM]
 
 class ProtoDialog(wx.Dialog):
+    def defaultProto(self):
+        proto = pb.Proto()
+        proto.rangZi = 0
+        proto.tieMu = 6.5
+        proto.whoFirst = pb.WhoFirst.RANDOM
+        proto.clock.baoLiu = 20*60
+        proto.clock.duMiao = 30
+        proto.clock.ciShu = 3
+        proto.clock.meiCi = 60
+        return proto
+
     def getProto(self):
         proto = pb.Proto()
         proto.rangZi = int(self.rangZiTc.GetValue())
@@ -14,9 +25,17 @@ class ProtoDialog(wx.Dialog):
         proto.clock.ciShu = int(self.ciShuTc.GetValue())
         proto.clock.meiCi = int(self.meiCiTc.GetValue())
         return proto
+
     def setProto(self,proto):
-        pass
-    def __init__(self,parent):
+        self.rangZiTc.SetValue(str(proto.rangZi))
+        self.tieMuTc.SetValue(str(proto.tieMu))
+        self.whoFirstTc.SetSelection(whoFirsts.index(proto.whoFirst))
+        self.baoLiuTc.SetValue(str(proto.clock.baoLiu))
+        self.duMiaoTc.SetValue(str(proto.clock.duMiao))
+        self.ciShuTc.SetValue(str(proto.clock.ciShu))
+        self.meiCiTc.SetValue(str(proto.clock.meiCi))
+
+    def __init__(self,parent,proto):
         wx.Dialog.__init__(self, parent, -1, '***set proto***',size=(300,300))
 
         grid = wx.GridBagSizer(0,0)
@@ -26,28 +45,28 @@ class ProtoDialog(wx.Dialog):
         protoSt = wx.StaticText(panel,label="*proto*")
 
         rangZiSt = wx.StaticText(panel,label="rangZi")
-        self.rangZiTc = wx.TextCtrl(panel,value='0')
+        self.rangZiTc = wx.TextCtrl(panel)
 
         tieMuSt = wx.StaticText(panel,label="tieMu")
-        self.tieMuTc = wx.TextCtrl(panel,value='6.5')
+        self.tieMuTc = wx.TextCtrl(panel)
 
         whoFirstSt = wx.StaticText(panel,label="whoFirst")
         self.whoFirstTc = wx.Choice(panel,choices=['YOU','ME','RANDOM'])
-        self.whoFirstTc.SetSelection(2)
+        # self.whoFirstTc.SetSelection(2)
 
         clockSt = wx.StaticText(panel,label="*clock*")
 
         baoLiuSt = wx.StaticText(panel,label="baoLiu")
-        self.baoLiuTc = wx.TextCtrl(panel,value='1200')
+        self.baoLiuTc = wx.TextCtrl(panel)
 
         duMiaoSt = wx.StaticText(panel,label="duMiao")
-        self.duMiaoTc = wx.TextCtrl(panel,value='30')
+        self.duMiaoTc = wx.TextCtrl(panel)
 
         ciShuSt = wx.StaticText(panel,label="ciShu")
-        self.ciShuTc = wx.TextCtrl(panel,value='3')
+        self.ciShuTc = wx.TextCtrl(panel)
 
         meiCiSt = wx.StaticText(panel,label="meiCi")
-        self.meiCiTc = wx.TextCtrl(panel,value='60')
+        self.meiCiTc = wx.TextCtrl(panel)
 
         okButton = wx.Button(panel, wx.ID_OK, "OK")
         okButton.SetDefault()
@@ -72,6 +91,10 @@ class ProtoDialog(wx.Dialog):
         grid.Add(okButton,pos=(9,0),flag=wx.EXPAND)
         grid.Add(cancelButton,pos=(9,1),flag=wx.EXPAND)
 
+        myproto = self.defaultProto() if proto == None else proto
+
+        self.setProto(myproto)
+
         panel.SetSizer(grid)
 
 class TestFrame(wx.Frame):
@@ -82,7 +105,7 @@ class TestFrame(wx.Frame):
         button.Bind(wx.EVT_BUTTON,self.OnOpenDialog)
     
     def OnOpenDialog(self,evt):
-        dialog = ProtoDialog(self)
+        dialog = ProtoDialog(self,None)
         result = dialog.ShowModal()
 
         if result == wx.ID_OK:

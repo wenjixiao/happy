@@ -165,6 +165,7 @@ func StartServ() {
 				// here, we need create the game and tell players to play
 				if session := GetSession(inviteAnswer.Pid); session != nil {
 					game := CreateGame(fromSession,session,inviteAnswer.Proto)
+					games = append(games,game)
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME,
 						Union: &pb.Msg_Game{game},
