@@ -75,13 +75,22 @@ func Leave(session *Session) {
 	}
 }
 
-func GetEmptyGame() (game *pb.Game) {
+func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) *pb.Game {
+	game := &pb.Game{
+		Gid: idPool.GetId(),
+		Proto: proto,
+		Players: []*pb.Player{fromSession.Player,toSession.Player},
+		Clocks: []*pb.Clock{&pb.Clock{},&pb.Clock{}},
+	}
 
-	return	
-}
+	for _,clock := range game.Clocks {
+		clock.BaoLiu = proto.Clock.BaoLiu
+		clock.DuMiao = proto.Clock.DuMiao
+		clock.CiShu = proto.Clock.CiShu
+		clock.MeiCi = proto.Clock.MeiCi
+	}
 
-func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) (game *pb.Game) {
-	return
+	return game
 }
 
 func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
@@ -155,7 +164,14 @@ func StartServ() {
 			if inviteAnswer.GetIsAgree() {
 				// here, we need create the game and tell players to play
 				if session := GetSession(inviteAnswer.Pid); session != nil {
-					CreateGame(fromSession,session,inviteAnswer.Proto)
+					game := CreateGame(fromSession,session,inviteAnswer.Proto)
+					msg := &pb.Msg{
+						Type: pb.MsgType_GAME,
+						Union: &pb.Msg_Game{game},
+					}
+					for _,mysession := range []*Session{fromSession,session} {
+						SendMsg(mysession,msg)
+					}
 				}
 			}else{
 				// here, we need to notify the player your answer who invited you
@@ -173,6 +189,7 @@ func StartServ() {
 					SendMsg(session, msg)
 				}
 			}
+		// switch end
 		}
 	}
 }

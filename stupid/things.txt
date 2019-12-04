@@ -1,9 +1,8 @@
 1,this is sublime2 build go file config
 {
-	"cmd": ["go","build"],
+	"cmd": ["go","build","server.go","basic.go","idpool.go"],
 	// .\gotest.go:12:44: duplicate argument person
-	"file_regex": "(.*):(\\d+):(\\d+):(.*)",
-	"selector": "source.go"
+	"file_regex": "(.*):(\\d+):(\\d+):(.*)"
 }
 
 2,when i run to this line *without* import struct module,nothing happened!!!! not give me a error!
