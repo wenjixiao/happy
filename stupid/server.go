@@ -169,9 +169,8 @@ func StartServ() {
 						Type: pb.MsgType_GAME,
 						Union: &pb.Msg_Game{game},
 					}
-					for _,mysession := range []*Session{fromSession,session} {
-						SendMsg(mysession,msg)
-					}
+					SendMsg(fromSession,msg)
+					SendMsg(session,msg)
 				}
 			}else{
 				// here, we need to notify the player your answer who invited you

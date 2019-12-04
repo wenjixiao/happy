@@ -4,7 +4,11 @@ import pb.msg_pb2 as pb
 whoFirsts = [pb.WhoFirst.YOU,pb.WhoFirst.ME,pb.WhoFirst.RANDOM]
 
 class ProtoDialog(wx.Dialog):
-	def defaultProto(self):
+	OK = 1
+	CHANGE = 2
+	CANCEL = 3
+	@staticmethod
+	def defaultProto():
 		proto = pb.Proto()
 		proto.rangZi = 0
 		proto.tieMu = 6.5
@@ -36,7 +40,12 @@ class ProtoDialog(wx.Dialog):
 		self.meiCiTc.SetValue(str(proto.clock.meiCi))
 
 	def __init__(self,parent,proto):
-		wx.Dialog.__init__(self, parent, -1, '***set proto***',size=(300,300))
+		wx.Dialog.__init__(self, parent, -1,size=(300,300))
+
+		if proto == None:
+			self.SetTitle("***set invite proto***")
+		else:
+			self.SetTitle("***received invite proto***")
 
 		grid = wx.GridBagSizer(0,0)
 
@@ -68,10 +77,6 @@ class ProtoDialog(wx.Dialog):
 		meiCiSt = wx.StaticText(panel,label="meiCi")
 		self.meiCiTc = wx.TextCtrl(panel)
 
-		okButton = wx.Button(panel, wx.ID_OK, "OK")
-		okButton.SetDefault()
-		cancelButton = wx.Button(panel, wx.ID_CANCEL, "Cancel")
-
 		grid.Add(protoSt,pos=(0,0),span=(1,2),flag=wx.ALIGN_CENTER)
 		grid.Add(rangZiSt,pos=(1,0),flag=wx.EXPAND)
 		grid.Add(self.rangZiTc,pos=(1,1),flag=wx.EXPAND)
@@ -88,14 +93,39 @@ class ProtoDialog(wx.Dialog):
 		grid.Add(self.ciShuTc,pos=(7,1),flag=wx.EXPAND)
 		grid.Add(meiCiSt,pos=(8,0),flag=wx.EXPAND)
 		grid.Add(self.meiCiTc,pos=(8,1),flag=wx.EXPAND)
-		grid.Add(okButton,pos=(9,0),flag=wx.EXPAND)
-		grid.Add(cancelButton,pos=(9,1),flag=wx.EXPAND)
+
+				
+		self.okButton = wx.Button(panel, -1, "OK")
+		self.okButton.SetDefault()
+		if proto != None:
+			self.changeButton = wx.Button(panel,-1,"Change")
+		self.cancelButton = wx.Button(panel, -1, "Cancel")
+
+		hbox = wx.BoxSizer()
+		hbox.Add(self.okButton)
+		if proto != None:
+			hbox.Add(self.changeButton)
+		hbox.Add(self.cancelButton)
+
+		grid.Add(hbox,pos=(9,0),span=(1,2),flag=wx.EXPAND)
 
 		myproto = self.defaultProto() if proto == None else proto
 
 		self.setProto(myproto)
 
 		panel.SetSizer(grid)
+
+		self.Bind(wx.EVT_BUTTON,self.onClick)
+
+	def onClick(self,event):
+		objId = event.GetEventObject().GetId()
+		if objId == self.okButton.GetId():
+			result = ProtoDialog.OK
+		elif objId == self.cancelButton.GetId():
+			result = ProtoDialog.CANCEL
+		else:
+			result = ProtoDialog.CHANGE
+		self.EndModal(result)
 
 class TestFrame(wx.Frame):
 	def __init__(self):
@@ -106,13 +136,11 @@ class TestFrame(wx.Frame):
 	
 	def OnOpenDialog(self,evt):
 		dialog = ProtoDialog(self,None)
+		# dialog = ProtoDialog(self,ProtoDialog.defaultProto())
 		result = dialog.ShowModal()
 
-		if result == wx.ID_OK:
-			print("Ok")
-			print(dialog.getProto())
-		else:
-			print("Cancel")
+		print("--------------------")
+		print(result)
 			
 		dialog.Destroy()
 		

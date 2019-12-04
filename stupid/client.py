@@ -182,11 +182,25 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.INVITE:
 			# show dialog,get yes or no,or change the proto to resend invite msg again
 			# if yes or no,send a invite_answer msg
-			pass
+			dialog = ProtoDialog(self,msg.invite.proto)
+			result = dialog.ShowModal()
+			if result == ProtoDialog.CHANGE:
+				# resend a invite to pid,use the changed proto
+				msg.invite.proto.CopyFrom(dialog.getProto())
+				self.send_msg(msg)
+			else:
+				# not change,agree or refuse
+				msg1 = pb.Msg()
+				msg1.type = pb.MsgType.INVITE_ANSWER
+				msg1.isAgree = True if result == ProtoDialog.OK else False
+				msg1.inviteAnswer.pid = msg.invite.pid
+				msg1.inviteAnswer.proto.CopyFrom(msg.invite.proto)
+				self.send_msg(msg1)
+			dialog.Destroy()
 		elif msg.type == pb.MsgType.INVITE_ANSWER:
-			# must be not agree
-			pass
+			logging.info("invite answer: isagree = {}".format(msg.inviteAnswer.isAgree))
 		elif msg.type == pb.MsgType.GAME:
+			# game created success
 			pass
 		else:
 			pass
