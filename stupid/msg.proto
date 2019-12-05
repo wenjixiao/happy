@@ -23,6 +23,7 @@ message Stone {
 
 message Game {
 	int32 gid = 1;
+	int32 turn = 7;
 	repeated Stone stones = 2;
 	repeated Player players = 3;
 	repeated Player watchers = 4;

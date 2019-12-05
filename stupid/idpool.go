@@ -1,7 +1,5 @@
 package main
 
-const IdPoolSize = 100
-
 type IdPool struct {
 	Size int32
 	Nums []int32

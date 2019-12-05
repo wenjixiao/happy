@@ -98,6 +98,7 @@ class BasicClient(wx.Frame):
 		self.init_async()
 		self.Centre()
 		self.Show()
+		self.async_thread.connect()
 		
 	def init_async(self):
 		self.async_thread = AsyncThread(self)
@@ -126,6 +127,7 @@ class BasicClient(wx.Frame):
 		panel.SetSizer(vbox)
 
 	def OnCloseWindow(self,event):
+		self.async_thread.dis_connect()
 		self.Destroy()
 
 	def on_run_button(self,event):
@@ -134,13 +136,7 @@ class BasicClient(wx.Frame):
 		myline = self.input_text.GetValue().split()
 		cmd = myline[0]
 		
-		if cmd == "connect":
-			self.async_thread.connect()
-
-		elif cmd == "dis_connect":
-			self.async_thread.dis_connect()
-
-		elif cmd == "login":
+		if cmd == "login":
 			msg = pb.Msg()
 			msg.type = pb.MsgType.LOGIN
 			msg.login.pid = myline[1]

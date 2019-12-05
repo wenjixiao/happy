@@ -4,6 +4,9 @@ import (
 	"./pb"
 	"log"
 	"net"
+	"math/rand"
+	"time"
+
 )
 
 const (
@@ -16,21 +19,40 @@ const (
 
 // ------------------------------------------------------------
 
-var sessions []*Session = []*Session{}
-var games []*pb.Game = []*pb.Game{}
+var sessions []*Session
+var games []*pb.Game
 
-var cmdChan chan int = make(chan int,5)
-var sessionChan chan *Session = make(chan *Session,5)
-var inviteChan chan *pb.Invite = make(chan *pb.Invite,5)
-var inviteAnswerChan chan *pb.InviteAnswer = make(chan *pb.InviteAnswer,5)
+var cmdChan chan int
+var sessionChan chan *Session
+var inviteChan chan *pb.Invite
+var inviteAnswerChan chan *pb.InviteAnswer
 
-var idPool *IdPool = NewIdPool(IdPoolSize)
+var idPool *IdPool
 
 // ------------------------------------------------------------
 
 type Session struct {
 	Conn   net.Conn
 	Player *pb.Player
+}
+
+// ------------------------------------------------------------
+
+func Init(){
+	const IdPoolSize = 100
+	const ChanBuf = 5
+
+	rand.Seed(time.Now().UnixNano())
+
+	sessions  = []*Session{}
+	games = []*pb.Game{}
+
+	cmdChan = make(chan int,ChanBuf)
+	sessionChan = make(chan *Session,ChanBuf)
+	inviteChan = make(chan *pb.Invite,ChanBuf)
+	inviteAnswerChan = make(chan *pb.InviteAnswer,ChanBuf)
+
+	idPool = NewIdPool(IdPoolSize)
 }
 
 // ------------------------------------------------------------
@@ -75,21 +97,34 @@ func Leave(session *Session) {
 	}
 }
 
+func GetTurn(proto *pb.Proto) (r int32) {
+	if proto.WhoFirst == pb.WhoFirst_RANDOM {
+		r = int32(rand.Intn(2))
+	}else{
+		if proto.WhoFirst == pb.WhoFirst_ME {
+			r = 0
+		}else{
+			r = 1
+		}
+	}
+	return
+}
+
 func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) *pb.Game {
 	game := &pb.Game{
 		Gid: idPool.GetId(),
 		Proto: proto,
+		Turn: GetTurn(proto),
 		Players: []*pb.Player{fromSession.Player,toSession.Player},
 		Clocks: []*pb.Clock{&pb.Clock{},&pb.Clock{}},
 	}
-
+	// init the player's clock,as proto defined
 	for _,clock := range game.Clocks {
 		clock.BaoLiu = proto.Clock.BaoLiu
 		clock.DuMiao = proto.Clock.DuMiao
 		clock.CiShu = proto.Clock.CiShu
 		clock.MeiCi = proto.Clock.MeiCi
 	}
-
 	return game
 }
 
@@ -106,6 +141,8 @@ func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
 }
 
 func StartServ() {
+	// must init all global things frist
+	Init()
 	// begin to serv
 	for {
 		switch cmd := <-cmdChan; cmd {
