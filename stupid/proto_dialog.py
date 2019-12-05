@@ -40,8 +40,8 @@ class ProtoDialog(wx.Dialog):
 		self.meiCiTc.SetValue(str(proto.clock.meiCi))
 
 	def __init__(self,parent,proto):
-		wx.Dialog.__init__(self, parent, -1,size=(300,300))
-
+		wx.Dialog.__init__(self, parent, -1)
+		self.SetSize(200,300)
 		if proto == None:
 			self.SetTitle("***set invite proto***")
 		else:
@@ -50,6 +50,7 @@ class ProtoDialog(wx.Dialog):
 		grid = wx.GridBagSizer(0,0)
 
 		panel = wx.Panel(self)
+		# panel.SetBackgroundColour(wx.Colour(224, 224, 4))
 
 		protoSt = wx.StaticText(panel,label="*proto*")
 
@@ -61,7 +62,6 @@ class ProtoDialog(wx.Dialog):
 
 		whoFirstSt = wx.StaticText(panel,label="whoFirst")
 		self.whoFirstTc = wx.Choice(panel,choices=['YOU','ME','RANDOM'])
-		# self.whoFirstTc.SetSelection(2)
 
 		clockSt = wx.StaticText(panel,label="*clock*")
 
@@ -78,20 +78,20 @@ class ProtoDialog(wx.Dialog):
 		self.meiCiTc = wx.TextCtrl(panel)
 
 		grid.Add(protoSt,pos=(0,0),span=(1,2),flag=wx.ALIGN_CENTER)
-		grid.Add(rangZiSt,pos=(1,0),flag=wx.EXPAND)
+		grid.Add(rangZiSt,pos=(1,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.rangZiTc,pos=(1,1),flag=wx.EXPAND)
-		grid.Add(tieMuSt,pos=(2,0),flag=wx.EXPAND)
+		grid.Add(tieMuSt,pos=(2,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.tieMuTc,pos=(2,1),flag=wx.EXPAND)
-		grid.Add(whoFirstSt,pos=(3,0),flag=wx.EXPAND)
+		grid.Add(whoFirstSt,pos=(3,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.whoFirstTc,pos=(3,1),flag=wx.EXPAND)
 		grid.Add(clockSt,pos=(4,0),span=(1,2),flag=wx.ALIGN_CENTER)
-		grid.Add(baoLiuSt,pos=(5,0),flag=wx.EXPAND)
+		grid.Add(baoLiuSt,pos=(5,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.baoLiuTc,pos=(5,1),flag=wx.EXPAND)
-		grid.Add(duMiaoSt,pos=(6,0),flag=wx.EXPAND)
+		grid.Add(duMiaoSt,pos=(6,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.duMiaoTc,pos=(6,1),flag=wx.EXPAND)
-		grid.Add(ciShuSt,pos=(7,0),flag=wx.EXPAND)
+		grid.Add(ciShuSt,pos=(7,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.ciShuTc,pos=(7,1),flag=wx.EXPAND)
-		grid.Add(meiCiSt,pos=(8,0),flag=wx.EXPAND)
+		grid.Add(meiCiSt,pos=(8,0),flag=wx.ALIGN_RIGHT)
 		grid.Add(self.meiCiTc,pos=(8,1),flag=wx.EXPAND)
 
 				
@@ -107,10 +107,11 @@ class ProtoDialog(wx.Dialog):
 			hbox.Add(self.changeButton)
 		hbox.Add(self.cancelButton)
 
-		grid.Add(hbox,pos=(9,0),span=(1,2),flag=wx.EXPAND)
+		grid.Add(hbox,pos=(9,0),span=(1,2),flag=wx.ALIGN_CENTER)
+
+		grid.AddGrowableCol(1)
 
 		myproto = self.defaultProto() if proto == None else proto
-
 		self.setProto(myproto)
 
 		panel.SetSizer(grid)
@@ -129,7 +130,7 @@ class ProtoDialog(wx.Dialog):
 
 class TestFrame(wx.Frame):
 	def __init__(self):
-		wx.Frame.__init__(self,None,-1,'Study dialog of wxpython')
+		wx.Frame.__init__(self,None,-1,'Study dialog of wxpython',size=(400,300))
 		panel=wx.Panel(self)
 		button=wx.Button(panel,-1,"Open dialog!")
 		button.Bind(wx.EVT_BUTTON,self.OnOpenDialog)
@@ -147,6 +148,7 @@ class TestFrame(wx.Frame):
 if __name__=='__main__':
 	app = wx.App()
 	frame=TestFrame()
+	frame.Center()
 	frame.Show()
 
 	app.MainLoop()
