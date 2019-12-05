@@ -150,7 +150,7 @@ class BasicClient(wx.Frame):
 		elif cmd == "invite":
 			dialog = ProtoDialog(self,None)
 			result = dialog.ShowModal()
-			if result == wx.ID_OK:
+			if result == ProtoDialog.OK:
 				msg = pb.Msg()
 				msg.type = pb.MsgType.INVITE
 				msg.invite.pid = myline[1]
@@ -192,7 +192,7 @@ class BasicClient(wx.Frame):
 				# not change,agree or refuse
 				msg1 = pb.Msg()
 				msg1.type = pb.MsgType.INVITE_ANSWER
-				msg1.isAgree = True if result == ProtoDialog.OK else False
+				msg1.inviteAnswer.isAgree = True if result == ProtoDialog.OK else False
 				msg1.inviteAnswer.pid = msg.invite.pid
 				msg1.inviteAnswer.proto.CopyFrom(msg.invite.proto)
 				self.send_msg(msg1)

@@ -41,7 +41,7 @@ class ProtoDialog(wx.Dialog):
 
 	def __init__(self,parent,proto):
 		wx.Dialog.__init__(self, parent, -1)
-		self.SetSize(200,300)
+		self.SetSize(300,280)
 		if proto == None:
 			self.SetTitle("***set invite proto***")
 		else:
@@ -50,7 +50,6 @@ class ProtoDialog(wx.Dialog):
 		grid = wx.GridBagSizer(0,0)
 
 		panel = wx.Panel(self)
-		# panel.SetBackgroundColour(wx.Colour(224, 224, 4))
 
 		protoSt = wx.StaticText(panel,label="*proto*")
 
