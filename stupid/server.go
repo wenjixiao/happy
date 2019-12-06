@@ -117,6 +117,7 @@ func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) *pb.Gam
 		Turn: GetTurn(proto),
 		Players: []*pb.Player{fromSession.Player,toSession.Player},
 		Clocks: []*pb.Clock{&pb.Clock{},&pb.Clock{}},
+		State: pb.GameState_READY,
 	}
 	// init the player's clock,as proto defined
 	for _,clock := range game.Clocks {

@@ -13,6 +13,14 @@ enum WhoFirst {
 	RANDOM = 2;
 }
 
+enum GameState {
+	CREATED = 0; 
+	READY = 1;
+	RUNNING = 2;
+	PAUSED = 3;
+	ENDED = 4;
+}
+
 //------------------------------------------------
 
 message Stone {
@@ -24,6 +32,7 @@ message Stone {
 message Game {
 	int32 gid = 1;
 	int32 turn = 7;
+	GameState state = 8;
 	repeated Stone stones = 2;
 	repeated Player players = 3;
 	repeated Player watchers = 4;

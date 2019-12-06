@@ -51,7 +51,7 @@ func HandleConn(session *Session) {
 			if err == io.EOF {
 				log.Println("---connection lost normal---")
 			} else {
-				log.Println("Read error: %s\n", err)
+				log.Printf("Read error: %s\n", err)
 			}
 
 			Leave(session)

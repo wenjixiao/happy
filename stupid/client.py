@@ -5,6 +5,7 @@ import wx
 import pb.msg_pb2 as pb
 import struct
 from proto_dialog import ProtoDialog
+import time
 
 logging.basicConfig(level = logging.DEBUG)
 
@@ -90,16 +91,52 @@ class AsyncThread(threading.Thread):
 		asyncio.set_event_loop(self.loop)
 		self.loop.run_forever()
 
+class FrameGame(wx.Frame):
+	def __init__(self,parent,game):
+		super(FrameGame, self).__init__(parent, size=(300, 800))
+		self.game = game
+		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
+		panel = wx.Panel(self)
+		self.head_text = wx.StaticText(panel,label="***game data***")
+		self.output_text = wx.TextCtrl(panel, style = wx.TE_MULTILINE | wx.HSCROLL)
+		
+		self.timer = wx.Timer(self)
+		self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
+		# self.timer.Start(1000) # 1 second interval
+
+		hbox = wx.BoxSizer()
+		hbox.Add(self.head_text,flag=wx.ALIGN_CENTER)
+
+		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(hbox,proportion=0,flag=wx.ALIGN_CENTER)
+		vbox.Add(self.output_text,proportion=1, flag=wx.EXPAND | wx.ALL,border=4)
+
+		panel.SetSizer(vbox)
+
+		self.SetGame(self.game)
+		self.Show()
+
+	def SetGame(self,game):
+		self.output_text.SetValue(str(game))
+
+	def OnTimer(self, evt):
+		pass
+
 # Bind(event, handler, source=None, id=wx.ID_ANY, id2=wx.ID_ANY)
 class BasicClient(wx.Frame):
 	def __init__(self, parent, title):
 		super(BasicClient, self).__init__(parent, title=title, size=(600, 400))
+		self.init()
 		self.init_ui()
 		self.init_async()
 		self.Centre()
 		self.Show()
 		self.async_thread.connect()
-		
+
+	def init(self):
+		self.player = None
+		self.frameGames = []
+
 	def init_async(self):
 		self.async_thread = AsyncThread(self)
 		self.async_thread.start()
@@ -168,7 +205,8 @@ class BasicClient(wx.Frame):
 			logging.info("***no that command!***\n")
 			
 		self.input_text.Clear()
-		
+
+
 	def msg_received(self,msg):
 		logging.info("=========received==========")
 		logging.info(msg)
@@ -196,8 +234,8 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.INVITE_ANSWER:
 			logging.info("invite answer: isagree = {}".format(msg.inviteAnswer.isAgree))
 		elif msg.type == pb.MsgType.GAME:
-			# game created success
-			pass
+			# create a window and set the game in
+			self.frameGames.append(FrameGame(self,msg.game))
 		else:
 			pass
 		self.output_text.SetValue(str(msg))
