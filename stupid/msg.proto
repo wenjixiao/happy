@@ -2,7 +2,7 @@ syntax="proto3";
 
 package pb;
 
-enum StoneColor {
+enum Color {
 	WHITE = 0;
 	BLACK = 1;
 }
@@ -13,7 +13,7 @@ enum WhoFirst {
 	RANDOM = 2;
 }
 
-enum GameState {
+enum State {
 	CREATED = 0; 
 	READY = 1;
 	RUNNING = 2;
@@ -21,23 +21,37 @@ enum GameState {
 	ENDED = 4;
 }
 
+enum EndType {
+	NORMAL = 0;
+	ADMIT = 1;
+	TIMEOUT = 2;
+}
+
 //------------------------------------------------
 
 message Stone {
-	StoneColor color = 1;
+	Color color = 1;
 	int32 x = 2;
 	int32 y = 3;
+	bool pass = 4;
+}
+
+message Result {
+	Color winner = 1;
+	EndType endType = 2;
+	float mount = 3;
 }
 
 message Game {
 	int32 gid = 1;
-	int32 turn = 7;
-	GameState state = 8;
+	int32 blackIndex = 7;
+	State state = 8;
 	repeated Stone stones = 2;
 	repeated Player players = 3;
 	repeated Player watchers = 4;
 	repeated Clock clocks = 5;
 	Proto proto = 6;
+	Result result = 9;
 }
 
 message Player {
@@ -48,16 +62,18 @@ message Player {
 
 message Clock {
 	int32 baoLiu = 1;
-	int32 duMiao = 2;
-	int32 ciShu = 3;
-	int32 meiCi = 4;
+	int32 ciShu = 2;
+	int32 duMiao = 3;
 }
 
 message Proto {
 	int32 rangZi = 1;
 	float tieMu = 2;
 	WhoFirst whoFirst = 3;
-	Clock clock = 4;
+	int32 baoLiu = 4;
+	int32 duMiao = 5;
+	int32 ciShu = 6;
+	int32 meiCi = 7;
 }
 
 //------------------------------------------------

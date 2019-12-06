@@ -97,7 +97,7 @@ func Leave(session *Session) {
 	}
 }
 
-func GetTurn(proto *pb.Proto) (r int32) {
+func GetBlackIndex(proto *pb.Proto) (r int32) {
 	if proto.WhoFirst == pb.WhoFirst_RANDOM {
 		r = int32(rand.Intn(2))
 	}else{
@@ -114,17 +114,16 @@ func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) *pb.Gam
 	game := &pb.Game{
 		Gid: idPool.GetId(),
 		Proto: proto,
-		Turn: GetTurn(proto),
+		BlackIndex: GetBlackIndex(proto),
 		Players: []*pb.Player{fromSession.Player,toSession.Player},
 		Clocks: []*pb.Clock{&pb.Clock{},&pb.Clock{}},
-		State: pb.GameState_READY,
+		State: pb.State_READY,
 	}
 	// init the player's clock,as proto defined
 	for _,clock := range game.Clocks {
-		clock.BaoLiu = proto.Clock.BaoLiu
-		clock.DuMiao = proto.Clock.DuMiao
-		clock.CiShu = proto.Clock.CiShu
-		clock.MeiCi = proto.Clock.MeiCi
+		clock.BaoLiu = proto.BaoLiu
+		clock.CiShu = proto.CiShu
+		clock.DuMiao = proto.DuMiao
 	}
 	return game
 }

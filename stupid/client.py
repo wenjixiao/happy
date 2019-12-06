@@ -1,126 +1,12 @@
-import asyncio
 import logging
-import threading
 import wx
 import pb.msg_pb2 as pb
-import struct
 from proto_dialog import ProtoDialog
-import time
+from game import PlayGame
+from basic import AsyncThread
 
 logging.basicConfig(level = logging.DEBUG)
 
-host = '127.0.0.1'
-port = 5678
-
-class MsgProtocol(asyncio.Protocol):
-	def __init__(self,uiObj):
-		asyncio.Protocol.__init__(self)
-		self.bufSize = 1024
-		self.buf = bytes()
-		self.headSize = 4
-
-		self.uiObj = uiObj
-
-	def connection_made(self,transport):
-		self.transport = transport
-		wx.CallAfter(self.uiObj.connection_made_callback)
-
-	def send_msg(self,msg):
-		self.transport.write(self.add_head(msg.SerializeToString()))
-
-	@staticmethod
-	def add_head(bin):
-		header = struct.pack('I',len(bin))
-		return header+bin
-
-	def data_received(self,data):
-		self.buf += data
-		if len(self.buf) < self.headSize:
-			logging.debug("dataSize < headSize!")
-			return
-		bodySize, = struct.unpack('<I',self.buf[:self.headSize])
-		logging.debug("bodySize={}".format(bodySize))
-		if len(self.buf) < self.headSize+bodySize:
-			logging.debug("message data not enougth!")
-			return
-		bin = self.buf[self.headSize:self.headSize+bodySize]
-
-		msg = pb.Msg()
-		msg.ParseFromString(bin)
-		wx.CallAfter(self.uiObj.msg_received,msg)
-
-		self.buf = self.buf[self.headSize+bodySize:]
-
-	def connection_lost(self,exc):
-		logging.debug("connection lost exception:{}".format(exc))
-		if exc is not None:
-			logging.info("---exit EXCEPTION---")
-			self.buf = bytes()
-		else:
-			logging.info("---exit normal---")
-		wx.CallAfter(self.uiObj.connection_lost_callback,exc)
-
-class AsyncThread(threading.Thread):
-	def __init__(self,uiObj):
-		threading.Thread.__init__(self)
-		self.uiObj = uiObj
-
-	async def inner_send_msg(self,msg):
-		logging.debug("*coro* inner_send_msg runned")
-		self.protocol.send_msg(msg)
-		
-	def send_msg(self,msg):
-		logging.debug("in send_msg")
-		coro = self.inner_send_msg(msg)
-		asyncio.run_coroutine_threadsafe(coro,self.loop)
-		
-	async def inner_connect(self):
-		self.transport,self.protocol = await self.loop.create_connection(lambda: MsgProtocol(self.uiObj),host,port)
-
-	async def inner_dis_connect(self):
-		self.transport.close()
-		
-	def connect(self):
-		asyncio.run_coroutine_threadsafe(self.inner_connect(),self.loop)
-		
-	def dis_connect(self):
-		asyncio.run_coroutine_threadsafe(self.inner_dis_connect(),self.loop)
-
-	def run(self):
-		self.loop = asyncio.new_event_loop()
-		asyncio.set_event_loop(self.loop)
-		self.loop.run_forever()
-
-class FrameGame(wx.Frame):
-	def __init__(self,parent,game):
-		super(FrameGame, self).__init__(parent, size=(300, 800))
-		self.game = game
-		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
-		panel = wx.Panel(self)
-		self.head_text = wx.StaticText(panel,label="***game data***")
-		self.output_text = wx.TextCtrl(panel, style = wx.TE_MULTILINE | wx.HSCROLL)
-		
-		self.timer = wx.Timer(self)
-		self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
-		# self.timer.Start(1000) # 1 second interval
-
-		hbox = wx.BoxSizer()
-		hbox.Add(self.head_text,flag=wx.ALIGN_CENTER)
-
-		vbox = wx.BoxSizer(wx.VERTICAL)
-		vbox.Add(hbox,proportion=0,flag=wx.ALIGN_CENTER)
-		vbox.Add(self.output_text,proportion=1, flag=wx.EXPAND | wx.ALL,border=4)
-
-		panel.SetSizer(vbox)
-
-		self.SetGame(self.game)
-		self.Show()
-
-	def SetGame(self,game):
-		self.output_text.SetValue(str(game))
-
-	def OnTimer(self, evt):
-		pass
 
 # Bind(event, handler, source=None, id=wx.ID_ANY, id2=wx.ID_ANY)
 class BasicClient(wx.Frame):
@@ -135,7 +21,7 @@ class BasicClient(wx.Frame):
 
 	def init(self):
 		self.player = None
-		self.frameGames = []
+		self.playGames = []
 
 	def init_async(self):
 		self.async_thread = AsyncThread(self)
@@ -235,7 +121,7 @@ class BasicClient(wx.Frame):
 			logging.info("invite answer: isagree = {}".format(msg.inviteAnswer.isAgree))
 		elif msg.type == pb.MsgType.GAME:
 			# create a window and set the game in
-			self.frameGames.append(FrameGame(self,msg.game))
+			self.playGames.append(PlayGame(self,msg.game))
 		else:
 			pass
 		self.output_text.SetValue(str(msg))

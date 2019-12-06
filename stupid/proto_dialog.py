@@ -13,10 +13,10 @@ class ProtoDialog(wx.Dialog):
 		proto.rangZi = 0
 		proto.tieMu = 6.5
 		proto.whoFirst = pb.WhoFirst.RANDOM
-		proto.clock.baoLiu = 20*60
-		proto.clock.duMiao = 30
-		proto.clock.ciShu = 3
-		proto.clock.meiCi = 60
+		proto.baoLiu = 20*60
+		proto.duMiao = 30
+		proto.ciShu = 3
+		proto.meiCi = 60
 		return proto
 
 	def getProto(self):
@@ -24,20 +24,20 @@ class ProtoDialog(wx.Dialog):
 		proto.rangZi = int(self.rangZiTc.GetValue())
 		proto.tieMu = float(self.tieMuTc.GetValue())
 		proto.whoFirst = whoFirsts[self.whoFirstTc.GetSelection()]
-		proto.clock.baoLiu = int(self.baoLiuTc.GetValue())
-		proto.clock.duMiao = int(self.duMiaoTc.GetValue())
-		proto.clock.ciShu = int(self.ciShuTc.GetValue())
-		proto.clock.meiCi = int(self.meiCiTc.GetValue())
+		proto.baoLiu = int(self.baoLiuTc.GetValue())
+		proto.duMiao = int(self.duMiaoTc.GetValue())
+		proto.ciShu = int(self.ciShuTc.GetValue())
+		proto.meiCi = int(self.meiCiTc.GetValue())
 		return proto
 
 	def setProto(self,proto):
 		self.rangZiTc.SetValue(str(proto.rangZi))
 		self.tieMuTc.SetValue(str(proto.tieMu))
 		self.whoFirstTc.SetSelection(whoFirsts.index(proto.whoFirst))
-		self.baoLiuTc.SetValue(str(proto.clock.baoLiu))
-		self.duMiaoTc.SetValue(str(proto.clock.duMiao))
-		self.ciShuTc.SetValue(str(proto.clock.ciShu))
-		self.meiCiTc.SetValue(str(proto.clock.meiCi))
+		self.baoLiuTc.SetValue(str(proto.baoLiu))
+		self.duMiaoTc.SetValue(str(proto.duMiao))
+		self.ciShuTc.SetValue(str(proto.ciShu))
+		self.meiCiTc.SetValue(str(proto.meiCi))
 
 	def __init__(self,parent,proto):
 		wx.Dialog.__init__(self, parent, -1)
