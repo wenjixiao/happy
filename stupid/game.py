@@ -4,11 +4,11 @@ import logging
 
 class PlayGame(wx.Frame):
 	def __init__(self,parent,game):
-		super(PlayGame, self).__init__(parent, size=(300, 800))
+		super(PlayGame, self).__init__(parent, size=(400, 300))
 		self.game = game
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 		panel = wx.Panel(self)
-		self.head_text = wx.StaticText(panel,label="***game data***")
+		self.clock_text = wx.StaticText(panel,label="***my clock data***")
 		self.output_text = wx.TextCtrl(panel, style = wx.TE_MULTILINE | wx.HSCROLL)
 		self.input_text = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
 		self.input_text.Bind(wx.EVT_TEXT_ENTER,self.OnMyAction)
@@ -18,11 +18,12 @@ class PlayGame(wx.Frame):
 		# self.timer.Start(1000) # 1 second interval
 
 		hbox = wx.BoxSizer()
-		hbox.Add(self.head_text,flag=wx.ALIGN_CENTER)
+		hbox.Add(self.clock_text,flag=wx.ALIGN_CENTER)
 
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		vbox.Add(hbox,proportion=0,flag=wx.ALIGN_CENTER)
 		vbox.Add(self.output_text,proportion=1, flag=wx.EXPAND | wx.ALL,border=4)
+		vbox.Add(self.input_text,flag=wx.EXPAND)
 
 		panel.SetSizer(vbox)
 
@@ -47,7 +48,7 @@ class PlayGame(wx.Frame):
 		self.timer.Stop()
 
 	def updateView(self):
-		self.output_text.SetValue(str(game.stones))
+		self.output_text.SetValue(str(self.game.stones))
 
 	def getOtherColor(self,color):
 		return pb.Color.BLACK if color == pb.Color.WHITE else pb.Color.WHITE
@@ -61,29 +62,34 @@ class PlayGame(wx.Frame):
 			return self.getOtherColor(lastStone.color)
 
 	def getMyColor(self):
-		return pb.Color.BLACK if self.players[self.game.blackIndex] == self.myPlayer() else pb.Color.WHITE
+		return pb.Color.BLACK if self.game.players[self.game.blackIndex] == self.myPlayer() else pb.Color.WHITE
+
+	def addStone(self,stone):
+		self.game.stones.append(stone)
+		self.updateView()
 
 	def putStone(self,stone):
 		if self.isMyTurn():
 			self.stopMyClock()
-			self.game.stones.append(stone)
-			self.updateView()
+			self.addStone(stone)
 
 			msg = pb.Msg()
 			msg.type = pb.MsgType.HAND
 			msg.hand.gid = self.game.gid
 			msg.hand.stone.CopyFrom(stone)
-			self.send_msg(hand)
+			self.send_msg(msg)
 		else:
-			self.game.stones.append(stone)
-			self.updateView()
+			self.addStone(stone)
 			self.checkStart()
 
 	def myPlayer(self):
 		return self.GetParent().player
 
 	def myIndex(self):
-		return self.game.players.index(self.myPlayer())
+		players = self.game.players
+		for i,p in enumerate(players):
+			if self.myPlayer() == p:
+				return i
 
 	def myClock(self):
 		return self.game.clocks[self.myIndex()]
@@ -116,6 +122,11 @@ class PlayGame(wx.Frame):
 		# tell server i timeout and gameover
 		pass
 
+	def updateClock(self):
+		clock = self.myClock()
+		s = str(clock.baoLiu)+"--"+str(clock.ciShu)+"--"+str(clock.duMiao)
+		self.clock_text.SetLabel(s)
+
 	def OnTimer(self, evt):
 		clock = self.myClock()
 		if clock.baoLiu != 0:
@@ -128,3 +139,5 @@ class PlayGame(wx.Frame):
 		else:
 			# timeout
 			self.iamTimeout()
+
+		self.updateClock()

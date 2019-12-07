@@ -122,6 +122,10 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.GAME:
 			# create a window and set the game in
 			self.playGames.append(PlayGame(self,msg.game))
+		elif msg.type == pb.MsgType.HAND:
+			for playGame in self.playGames:
+				if playGame.game.gid == msg.hand.gid:
+					playGame.putStone(msg.hand.stone)
 		else:
 			pass
 		self.output_text.SetValue(str(msg))

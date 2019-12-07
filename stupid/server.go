@@ -15,6 +15,7 @@ const (
 	CMD_DATA =3;
 	CMD_INVITE = 4;
 	CMD_INVITE_ANSWER = 5;
+	CMD_HAND = 6;
 )
 
 // ------------------------------------------------------------
@@ -26,6 +27,7 @@ var cmdChan chan int
 var sessionChan chan *Session
 var inviteChan chan *pb.Invite
 var inviteAnswerChan chan *pb.InviteAnswer
+var handChan chan *pb.Hand
 
 var idPool *IdPool
 
@@ -51,6 +53,7 @@ func Init(){
 	sessionChan = make(chan *Session,ChanBuf)
 	inviteChan = make(chan *pb.Invite,ChanBuf)
 	inviteAnswerChan = make(chan *pb.InviteAnswer,ChanBuf)
+	handChan = make(chan *pb.Hand,ChanBuf)
 
 	idPool = NewIdPool(IdPoolSize)
 }
@@ -73,13 +76,22 @@ func RemoveSession(session *Session) {
 	sessions = sessions[:len(sessions)-1]
 }
 
-func GetSession(pid string) *Session {
+func GetSession(pid string) (*Session,bool) {
 	for _, session := range sessions {
 		if session.Player.Pid == pid {
-			return session
+			return session,true
 		}
 	}
-	return nil
+	return nil,false
+}
+
+func GetGame(gid int32) (*pb.Game,bool) {
+	for _,game := range games {
+		if game.Gid == gid {
+			return game,true
+		}
+	}
+	return nil,false
 }
 
 func GetPlayers() (players []*pb.Player) {
@@ -181,7 +193,7 @@ func StartServ() {
 		case CMD_INVITE:
 			fromSession := <- sessionChan
 			invite := <- inviteChan
-			if session := GetSession(invite.Pid); session != nil {
+			if session,ok := GetSession(invite.Pid); ok {
 				msg := &pb.Msg{
 					Type: pb.MsgType_INVITE,
 					Union: &pb.Msg_Invite{
@@ -199,7 +211,7 @@ func StartServ() {
 			inviteAnswer := <- inviteAnswerChan
 			if inviteAnswer.GetIsAgree() {
 				// here, we need create the game and tell players to play
-				if session := GetSession(inviteAnswer.Pid); session != nil {
+				if session,ok := GetSession(inviteAnswer.Pid); ok {
 					game := CreateGame(fromSession,session,inviteAnswer.Proto)
 					games = append(games,game)
 					msg := &pb.Msg{
@@ -211,7 +223,7 @@ func StartServ() {
 				}
 			}else{
 				// here, we need to notify the player your answer who invited you
-				if session := GetSession(inviteAnswer.Pid); session != nil {
+				if session,ok := GetSession(inviteAnswer.Pid); ok {
 					msg := &pb.Msg{
 						Type: pb.MsgType_INVITE_ANSWER,
 						Union: &pb.Msg_InviteAnswer{
@@ -225,8 +237,25 @@ func StartServ() {
 					SendMsg(session, msg)
 				}
 			}
-		// switch end
-		}
+
+		case CMD_HAND:
+			fromSession := <- sessionChan
+			hand := <- handChan
+			msg := &pb.Msg{
+				Type: pb.MsgType_HAND,
+				Union: &pb.Msg_Hand{hand},
+			}
+
+			if game,ok := GetGame(hand.Gid); ok {
+				for _,p := range game.Players {
+					if p.Pid != fromSession.Player.Pid {
+						if session,ok := GetSession(p.Pid); ok {
+							SendMsg(session,msg)
+						}
+					}
+				}
+			}
+		}// switch end
 	}
 }
 
@@ -264,6 +293,11 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		cmdChan <- CMD_INVITE_ANSWER
 		sessionChan <- session
 		inviteAnswerChan <- msg.GetInviteAnswer()
+
+	case pb.MsgType_HAND:
+		cmdChan <- CMD_HAND
+		sessionChan <- session
+		handChan <- msg.GetHand()
 	}
 }
 
