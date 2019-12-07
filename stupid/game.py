@@ -7,15 +7,17 @@ class PlayGame(wx.Frame):
 		super(PlayGame, self).__init__(parent, size=(400, 300))
 		self.game = game
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
+
+		self.timer = wx.Timer(self)
+		self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
+
 		panel = wx.Panel(self)
+
 		self.clock_text = wx.StaticText(panel,label="***my clock data***")
+		
 		self.output_text = wx.TextCtrl(panel, style = wx.TE_MULTILINE | wx.HSCROLL)
 		self.input_text = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
 		self.input_text.Bind(wx.EVT_TEXT_ENTER,self.OnMyAction)
-		
-		self.timer = wx.Timer(self)
-		self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
-		# self.timer.Start(1000) # 1 second interval
 
 		hbox = wx.BoxSizer()
 		hbox.Add(self.clock_text,flag=wx.ALIGN_CENTER)
@@ -28,9 +30,7 @@ class PlayGame(wx.Frame):
 		panel.SetSizer(vbox)
 
 		self.updateView()
-
 		self.Show()
-
 		self.checkStart()
 
 	def canPutStone(self):

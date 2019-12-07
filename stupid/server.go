@@ -241,15 +241,15 @@ func StartServ() {
 		case CMD_HAND:
 			fromSession := <- sessionChan
 			hand := <- handChan
-			msg := &pb.Msg{
-				Type: pb.MsgType_HAND,
-				Union: &pb.Msg_Hand{hand},
-			}
 
 			if game,ok := GetGame(hand.Gid); ok {
 				for _,p := range game.Players {
 					if p.Pid != fromSession.Player.Pid {
 						if session,ok := GetSession(p.Pid); ok {
+							msg := &pb.Msg{
+								Type: pb.MsgType_HAND,
+								Union: &pb.Msg_Hand{hand},
+							}
 							SendMsg(session,msg)
 						}
 					}
@@ -264,15 +264,11 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 	switch msg.GetType() {
 	case pb.MsgType_LOGIN:
 		login := msg.GetLogin()
-		myplayer := &pb.Player{
-			Pid:    login.Pid,
-			Passwd: login.Passwd,
-		}
-		if session.Player == nil {
+		if myplayer,ok := GetPlayer(login.Pid,login.Passwd); ok {
 			session.Player = myplayer
 			cmdChan <- CMD_ADD_SESSION
 			sessionChan <- session
-		} else {
+		}else{
 			// relogin
 			session.Player = myplayer
 		}
