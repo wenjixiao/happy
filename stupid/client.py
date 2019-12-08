@@ -2,7 +2,7 @@ import logging
 import wx
 import pb.msg_pb2 as pb
 from proto_dialog import ProtoDialog
-from game import PlayGame
+from game import GameFrame
 from basic import AsyncThread
 
 logging.basicConfig(level = logging.DEBUG)
@@ -21,7 +21,7 @@ class BasicClient(wx.Frame):
 
 	def init(self):
 		self.player = None
-		self.playGames = []
+		self.gameFrames = []
 
 	def init_async(self):
 		self.async_thread = AsyncThread(self)
@@ -121,11 +121,11 @@ class BasicClient(wx.Frame):
 			logging.info("invite answer: isagree = {}".format(msg.inviteAnswer.isAgree))
 		elif msg.type == pb.MsgType.GAME:
 			# create a window and set the game in
-			self.playGames.append(PlayGame(self,msg.game))
+			self.gameFrames.append(GameFrame(self,msg.game))
 		elif msg.type == pb.MsgType.HAND:
-			for playGame in self.playGames:
-				if playGame.game.gid == msg.hand.gid:
-					playGame.putStone(msg.hand.stone)
+			for gameFrame in self.gameFrames:
+				if gameFrame.game.gid == msg.hand.gid:
+					gameFrame.putStone(msg.hand.stone)
 		else:
 			pass
 		self.output_text.SetValue(str(msg))

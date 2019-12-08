@@ -129,7 +129,7 @@ func CreateGame(fromSession *Session,toSession *Session,proto *pb.Proto) *pb.Gam
 		BlackIndex: GetBlackIndex(proto),
 		Players: []*pb.Player{fromSession.Player,toSession.Player},
 		Clocks: []*pb.Clock{&pb.Clock{},&pb.Clock{}},
-		State: pb.State_READY,
+		State: pb.State_RUNNING,
 	}
 	// init the player's clock,as proto defined
 	for _,clock := range game.Clocks {

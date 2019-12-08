@@ -6,20 +6,24 @@ def otherColor(color):
 	return pb.Color.BLACK if color == pb.Color.WHITE else pb.Color.WHITE
 
 class PlayerPane(wx.Panel):
-	def __init__(self,parent,game,player,clock):
+	def __init__(self,parent,gameFrame,player,clock):
 		super(PlayerPane,self).__init__(parent)
-		self.game = game
+		self.gameFrame = gameFrame
 		self.player = player
 		self.pidSt = wx.StaticText(self,label = self.getPidStr())
 		self.levelSt = wx.StaticText(self,label = self.getLevelStr())
-		self.clockPane = ClockPane(self,game,clock)
+		self.clockPane = ClockPane(self,self.gameFrame,clock)
 
-		vbox = wx.BoxSizer(wx.VERTICAL)
-		vbox.Add(self.pidSt,flag = wx.ALIGN_CENTER)
-		vbox.Add(self.levelSt,flag = wx.ALIGN_CENTER)
-		vbox.Add(self.clockPane,flag = wx.EXPAND)
+		grid = wx.FlexGridSizer(rows=1,cols=3,vgap=2,hgap=2)
+		grid.Add(self.pidSt,proportion=1,flag = wx.ALIGN_CENTER)
+		grid.Add(self.levelSt,proportion=1,flag = wx.ALIGN_CENTER)
+		grid.Add(self.clockPane,proportion=2,flag = wx.EXPAND)
 
-		self.SetSizer(vbox)
+		grid.AddGrowableCol(0, 1)
+		grid.AddGrowableCol(1, 1)
+		grid.AddGrowableCol(2, 1)
+
+		self.SetSizer(grid)
 
 	def getPidStr(self):
 		return str(self.player.pid)
@@ -28,9 +32,9 @@ class PlayerPane(wx.Panel):
 		return str(self.player.level)
 
 class ClockPane(wx.Panel):
-	def __init__(self,parent,game,clock):
+	def __init__(self,parent,gameFrame,clock):
 		super(ClockPane,self).__init__(parent)
-		self.game = game
+		self.gameFrame = gameFrame
 		self.clock = clock
 		self.timer = wx.Timer(self)
 		self.Bind(wx.EVT_TIMER, self.onClick, self.timer)
@@ -39,26 +43,26 @@ class ClockPane(wx.Panel):
 		self.ciShuMeiCiSt = wx.StaticText(self,label = self.getCiShuMeiCiStr())
 		self.duMiaoSt = wx.StaticText(self,label = self.getDuMiaoStr())
 
-		vbox = wx.BoxSizer(wx.VERTICAL)
-		vbox.Add(self.baoLiuSt,flag = wx.ALIGN_CENTER)
-		vbox.Add(self.ciShuMeiCiSt,flag = wx.ALIGN_CENTER)
-		vbox.Add(self.duMiaoSt,flag = wx.ALIGN_CENTER)
-		self.SetSizer(vbox)
+		grid = wx.GridSizer(rows=1,cols=3,vgap=2,hgap=2)
+		grid.Add(self.baoLiuSt,proportion=0,flag = wx.ALIGN_CENTER)
+		grid.Add(self.ciShuMeiCiSt,proportion=0,flag = wx.ALIGN_CENTER)
+		grid.Add(self.duMiaoSt,proportion=0,flag = wx.ALIGN_CENTER)
+		self.SetSizer(grid)
 
 	def getPaoLiuStr(self):
 		return str(self.clock.baoLiu)
 
 	def getCiShuMeiCiStr(self):
-		return str(self.clock.ciShu)+"*"+str(self.game.proto.meiCi)
+		return str(self.gameFrame.game.proto.meiCi)+"*"+str(self.clock.ciShu)
 
 	def getDuMiaoStr(self):
 		return str(self.clock.duMiao)
 
 	def resetDuMiao(self):
-		self.clock.duMiao = self.game.proto.duMiao
+		self.clock.duMiao = self.gameFrame.game.proto.duMiao
 
 	def resetMeiCi(self):
-		self.clock.duMiao = self.game.proto.meiCi
+		self.clock.duMiao = self.gameFrame.game.proto.meiCi
 
 	def updateView(self):
 		self.baoLiuSt.SetLabel(self.getPaoLiuStr())
@@ -76,7 +80,8 @@ class ClockPane(wx.Panel):
 			self.resetMeiCi()
 		else:
 			# timeout
-			self.iamTimeout()
+			self.gameFrame.iamTimeout()
+
 		self.updateView()
 
 	def start(self):
@@ -87,32 +92,35 @@ class ClockPane(wx.Panel):
 		self.resetDuMiao()
 
 class BoardPane(wx.Panel):
-	def __init__(self,parent,game):
+	def __init__(self,parent,gameFrame):
 		super(BoardPane,self).__init__(parent)
 		vbox = wx.BoxSizer(wx.VERTICAL)
-		self.game = game
+		self.gameFrame = gameFrame
 		self.outputText = wx.TextCtrl(self, style = wx.TE_MULTILINE | wx.HSCROLL)
 		vbox.Add(self.outputText,proportion=1,flag = wx.EXPAND)
 		self.SetSizer(vbox)
 
+	def getGame(self):
+		return self.gameFrame.game
+
 	def updateView(self):
-		self.outputText.SetValue(str(self.game.stones))
+		self.outputText.SetValue(str(self.getGame().stones))
 
 	def addStone(self,stone):
-		self.game.stones.append(stone)
+		self.getGame().stones.append(stone)
 		self.updateView()
 
 	def getNextColor(self):
-		c = len(self.game.stones) 
+		c = len(self.getGame().stones)
 		if c == 0:
 			return pb.Color.BLACK
 		else:
-			lastStone = self.game.stones[c-1]
+			lastStone = self.getGame().stones[c-1]
 			return otherColor(lastStone.color)
 
-class PlayGame(wx.Frame):
+class GameFrame(wx.Frame):
 	def __init__(self,parent,game):
-		super(PlayGame, self).__init__(parent, size=(400, 300))
+		super(GameFrame, self).__init__(parent, size=(400, 300))
 		self.game = game
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 
@@ -121,14 +129,14 @@ class PlayGame(wx.Frame):
 		self.inputText = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
 		self.inputText.Bind(wx.EVT_TEXT_ENTER,self.onMyAction)
 
-		hbox = wx.BoxSizer()
-		self.playerPanes = [PlayerPane(panel,self.game,p,c) for p,c in zip(self.game.players,self.game.clocks)]
-		for playerPane in self.playerPanes:
-			hbox.Add(playerPane)
-
+		self.playerPanes = [PlayerPane(panel,self,p,c) for p,c in zip(self.game.players,self.game.clocks)]
+		self.boardPane = BoardPane(panel,self)
+		
 		vbox = wx.BoxSizer(wx.VERTICAL)
-		vbox.Add(hbox,proportion=0,flag=wx.ALIGN_CENTER)
-		self.boardPane = BoardPane(panel,self.game)
+
+		for playerPane in self.playerPanes:
+			vbox.Add(playerPane,proportion=0,flag=wx.EXPAND)
+
 		vbox.Add(self.boardPane,proportion=1, flag=wx.EXPAND)
 		vbox.Add(self.inputText,proportion=0,flag=wx.EXPAND)
 
@@ -138,7 +146,7 @@ class PlayGame(wx.Frame):
 		self.checkStart()
 
 	def canPutStone(self):
-		return self.game.state == pb.State.READY or self.game.state == pb.State.RUNNING
+		return self.game.state == pb.State.RUNNING
 
 	def startMyClock(self):
 		for playerPane in self.playerPanes:
@@ -192,11 +200,17 @@ class PlayGame(wx.Frame):
 		self.GetParent().send_msg(msg)
 
 	def iamTimeout(self):
-		logging.info("timeout:")
+		myresult = pb.Result()
+		myresult.winner = otherColor(self.myColor())
+		myresult.endType = pb.EndType.TIMEOUT
 
 		self.game.state = pb.State.ENDED
-		self.game.result.winner = otherColor(self.myColor())
-		self.game.result.endType = pb.EndType.TIMEOUT
+		self.game.result.CopyFrom(myresult)
 
-		# tell server i timeout and gameover
-		pass
+		msg = pb.Msg()
+		msg.type = pb.MsgType.END_GAME
+		msg.endGame.gid = self.game.gid
+		msg.endGame.result.CopyFrom(myresult)
+
+		self.send_msg(msg)
+

@@ -14,11 +14,10 @@ enum WhoFirst {
 }
 
 enum State {
-	CREATED = 0; 
-	READY = 1;
-	RUNNING = 2;
-	PAUSED = 3;
-	ENDED = 4;
+	PREPARE = 0;
+	RUNNING = 1;
+	PAUSED = 2;
+	ENDED = 3;
 }
 
 enum EndType {
@@ -40,6 +39,11 @@ message Result {
 	Color winner = 1;
 	EndType endType = 2;
 	float mount = 3;
+}
+
+message EndGame {
+	int32 gid = 1;
+	Result result = 2;
 }
 
 message Game {
@@ -88,6 +92,7 @@ enum MsgType {
 	INVITE = 6;
 	INVITE_ANSWER = 7;
 	GAME = 8;
+	END_GAME = 9;
 }
 
 //------------------------------------------------
@@ -104,6 +109,7 @@ message Msg{
 		Invite invite = 8;
 		InviteAnswer inviteAnswer = 9;
 		Game game = 10;
+		EndGame endGame = 11;
 	}
 }
 
