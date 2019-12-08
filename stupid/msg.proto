@@ -22,7 +22,7 @@ enum State {
 }
 
 enum EndType {
-	NORMAL = 0;
+	COUNT = 0;
 	ADMIT = 1;
 	TIMEOUT = 2;
 }
@@ -42,7 +42,16 @@ message Result {
 	float mount = 3;
 }
 
-message EndGame {
+message CountRequest {
+	int32 gid = 1;
+}
+
+message CountRequestAnswer {
+	int32 gid = 1;
+	bool agree = 2;
+}
+
+message GameOver {
 	int32 gid = 1;
 	Result result = 2;
 }
@@ -55,10 +64,10 @@ message DeadStones {
 	repeated Stone stones = 2;
 }
 
-message ResultAnswer {
+message CountResultAnswer {
 	int32 gid = 1;
 	Result result = 2;
-	bool isAgree = 3;
+	bool agree = 3;
 }
 
 //------------------------------------------------
@@ -109,9 +118,11 @@ enum MsgType {
 	INVITE = 6;
 	INVITE_ANSWER = 7;
 	GAME = 8;
-	END_GAME = 9;
+	COUNT_REQUEST = 9;
 	DEAD_STONES = 10;
-	RESULT_ANSWER = 11;
+	COUNT_RESULT_ANSWER = 11;
+	GAME_OVER = 12;
+	COUNT_REQUEST_ANSWER = 13;
 }
 
 //------------------------------------------------
@@ -128,9 +139,11 @@ message Msg{
 		Invite invite = 8;
 		InviteAnswer inviteAnswer = 9;
 		Game game = 10;
-		EndGame endGame = 11;
+		CountRequest countRequest = 11;
 		DeadStones deadStones = 12;
-		ResultAnswer resultAnswer = 13;
+		CountResultAnswer countResultAnswer = 13;
+		GameOver gameOver = 14;
+		CountRequestAnswer countRequestAnswer = 15;
 	}
 }
 

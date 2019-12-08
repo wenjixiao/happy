@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	CMD_ADD_SESSION = 1;
-	CMD_REMOVE_SESSION = 2;
-	CMD_DATA =3;
-	CMD_INVITE = 4;
-	CMD_INVITE_ANSWER = 5;
-	CMD_HAND = 6;
-	CMD_END_GAME = 7;
-	CMD_DEAD_STONES = 8;
+	CMD_ADD_SESSION = 1
+	CMD_REMOVE_SESSION = 2
+	CMD_DATA =3
+	CMD_INVITE = 4
+	CMD_INVITE_ANSWER = 5
+	CMD_HAND = 6
+	CMD_COUNT_STONE = 7
+	CMD_DEAD_STONES = 8
+	CMD_COUNT_RESULT_ANSWER = 9
+	CMD_GAME_OVER = 10
 )
 
 // ------------------------------------------------------------
@@ -30,8 +32,9 @@ var sessionChan chan *Session
 var inviteChan chan *pb.Invite
 var inviteAnswerChan chan *pb.InviteAnswer
 var handChan chan *pb.Hand
-var endGameChan chan *pb.EndGame
+var gameOverChan chan *pb.GameOver
 var deadStonesChan chan *pb.DeadStones
+var countResultAnswerChan chan *pb.CountResultAnswer
 
 var idPool *IdPool
 
@@ -58,8 +61,9 @@ func Init(){
 	inviteChan = make(chan *pb.Invite,ChanBuf)
 	inviteAnswerChan = make(chan *pb.InviteAnswer,ChanBuf)
 	handChan = make(chan *pb.Hand,ChanBuf)
-	endGameChan = make(chan *pb.EndGame,ChanBuf)
+	gameOverChan = make(chan *pb.GameOver,ChanBuf)
 	deadStonesChan = make(chan *pb.DeadStones,ChanBuf)
+	countResultAnswerChan = make(chan *pb.CountResultAnswer,ChanBuf)
 
 	idPool = NewIdPool(IdPoolSize)
 }
@@ -164,6 +168,7 @@ func StartServ() {
 
 	// all deadStones messages saved here
 	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
+	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
 
 	// begin to serv
 	for {
@@ -260,35 +265,31 @@ func StartServ() {
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
-		case CMD_END_GAME:
+		case CMD_GAME_OVER:
 			fromSession := <- sessionChan
-			endGame := <- endGameChan
-			result := endGame.GetResult()
+			gameOver := <- gameOverChan
 
-			if game,ok := GetGame(endGame.Gid); ok {
+			if game,ok := GetGame(gameOver.Gid); ok {
 				// change game state first
-				if result.EndType == pb.EndType_TIMEOUT || result.EndType == pb.EndType_ADMIT {
-					game.State = pb.State_ENDED
-					game.Result = endGame.Result
+				game.State = pb.State_ENDED
+				game.Result = gameOver.Result
 
-				}
-				// and than resend the endgame msg to the other player
+				// and than resend the gameOver msg to the other player
 				msg := &pb.Msg{
-					Type: pb.MsgType_END_GAME,
-					Union: &pb.Msg_EndGame{endGame},
+					Type: pb.MsgType_GAME_OVER,
+					Union: &pb.Msg_GameOver{gameOver},
 				}
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
 		case CMD_DEAD_STONES:
-			<- sessionChan
 			deadStones := <- deadStonesChan
 			recordDeadStones = append(recordDeadStones,deadStones)
 			if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
 				msg := &pb.Msg{
-					Type: pb.MsgType_END_GAME,
-					Union: &pb.Msg_EndGame{
-						&pb.EndGame{
+					Type: pb.MsgType_GAME_OVER,
+					Union: &pb.Msg_GameOver{
+						&pb.GameOver{
 							Gid: deadStones.Gid,
 							Result: CountForResult(deadStones.Gid,stones),
 						},
@@ -302,11 +303,36 @@ func StartServ() {
 					}
 				}
 			}
+
+		case CMD_COUNT_RESULT_ANSWER:
+			countResultAnswer := <- countResultAnswerChan
+			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
+			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
+				if agree == 2 {
+					// Gameover
+				}else{
+					// Restart the game! Someone disagree,but i don't care who refuse. 
+
+				}
+			}
 		}// switch end
 	}
 }
 
+func AgreeCountResultAnswers(theCountResultAnswers []*pb.CountResultAnswer,gid int32) (agree int,all int){
+	for _,countResultAnswer := range theCountResultAnswers {
+		if countResultAnswer.Gid == gid {
+			all += 1
+			if countResultAnswer.Agree {
+				agree += 1
+			}
+		}
+	}
+	return
+}
+
 func CountForResult(gid int32,deads []*pb.Stone) (result *pb.Result) {
+	// @todo 
 	return
 }
 
@@ -366,16 +392,18 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		sessionChan <- session
 		handChan <- msg.GetHand()
 
-	case pb.MsgType_END_GAME:
-		cmdChan <- CMD_END_GAME
+	case pb.MsgType_GAME_OVER:
+		cmdChan <- CMD_GAME_OVER
 		sessionChan <- session
-		endGameChan <- msg.GetEndGame()
+		gameOverChan <- msg.GetGameOver()
 
 	case pb.MsgType_DEAD_STONES:
 		cmdChan <- CMD_DEAD_STONES
-		sessionChan <- session
 		deadStonesChan <- msg.GetDeadStones()
 
+	case pb.MsgType_COUNT_RESULT_ANSWER:
+		cmdChan <- CMD_COUNT_RESULT_ANSWER
+		countResultAnswerChan <- msg.GetCountResultAnswer()
 	}
 }
 

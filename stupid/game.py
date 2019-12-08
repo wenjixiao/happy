@@ -215,9 +215,9 @@ class GameFrame(wx.Frame):
 		self.gameover(myresult)
 
 		msg = pb.Msg()
-		msg.type = pb.MsgType.END_GAME
-		msg.endGame.gid = self.game.gid
-		msg.endGame.result.CopyFrom(myresult)
+		msg.type = pb.MsgType.GAME_OVER
+		msg.gameOver.gid = self.game.gid
+		msg.gameOver.result.CopyFrom(myresult)
 
 		self.send_msg(msg)
 

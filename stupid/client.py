@@ -132,19 +132,27 @@ class BasicClient(wx.Frame):
 				if gameFrame.game.gid == msg.hand.gid:
 					gameFrame.putStone(msg.hand.stone)
 
-		elif msg.type == pb.MsgType.END_GAME:
-			# request to count
-			if msg.endGame.result.entType == pb.EndType.NORMAL:
+		elif msg.type == pb.MsgType.GAME_OVER:
+			if msg.gameOver.result.endType == pb.EndType.COUNT:
+				# request to count
 				# show yes or no dialog,if yes,the game's state trans to counting
-				pass
+				yesOrNo = True
+				
+				msg = pb.Msg()
+				msg.type = pb.MsgType.COUNT_RESULT_ANSWER
+				msg.countResultAnswer.gid = msg.gameOver.gid
+				msg.countResultAnswer.result.CopyFrom(msg.gameOver.result)
+				msg.countResultAnswer.agree = yesOrNo
+				self.send_msg(msg)
 			else:
 				# timeout or admit
 				for gameFrame in self.gameFrames:
 					if gameFrame.game.gid == msg.endGame.gid:
 						gameFrame.gameover(msg.endGame.result)
-				
+
 		else:
 			pass
+
 		self.output_text.SetValue(str(msg))
 	
 	def send_msg(self,msg):
