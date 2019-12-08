@@ -96,9 +96,11 @@ class BasicClient(wx.Frame):
 	def msg_received(self,msg):
 		logging.info("=========received==========")
 		logging.info(msg)
+
 		if msg.type == pb.MsgType.LOGIN_OK:
 			self.player = msg.loginOk.player
 			self.SetTitle("----{}----".format(self.player.pid))
+
 		elif msg.type == pb.MsgType.INVITE:
 			# show dialog,get yes or no,or change the proto to resend invite msg again
 			# if yes or no,send a invite_answer msg
@@ -117,15 +119,30 @@ class BasicClient(wx.Frame):
 				msg1.inviteAnswer.proto.CopyFrom(msg.invite.proto)
 				self.send_msg(msg1)
 			dialog.Destroy()
+
 		elif msg.type == pb.MsgType.INVITE_ANSWER:
 			logging.info("invite answer: isagree = {}".format(msg.inviteAnswer.isAgree))
+
 		elif msg.type == pb.MsgType.GAME:
 			# create a window and set the game in
 			self.gameFrames.append(GameFrame(self,msg.game))
+
 		elif msg.type == pb.MsgType.HAND:
 			for gameFrame in self.gameFrames:
 				if gameFrame.game.gid == msg.hand.gid:
 					gameFrame.putStone(msg.hand.stone)
+
+		elif msg.type == pb.MsgType.END_GAME:
+			# request to count
+			if msg.endGame.result.entType == pb.EndType.NORMAL:
+				# show yes or no dialog,if yes,the game's state trans to counting
+				pass
+			else:
+				# timeout or admit
+				for gameFrame in self.gameFrames:
+					if gameFrame.game.gid == msg.endGame.gid:
+						gameFrame.gameover(msg.endGame.result)
+				
 		else:
 			pass
 		self.output_text.SetValue(str(msg))

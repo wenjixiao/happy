@@ -17,7 +17,8 @@ enum State {
 	PREPARE = 0;
 	RUNNING = 1;
 	PAUSED = 2;
-	ENDED = 3;
+	COUNTING = 3;
+	ENDED = 4;
 }
 
 enum EndType {
@@ -45,6 +46,22 @@ message EndGame {
 	int32 gid = 1;
 	Result result = 2;
 }
+
+//------------------------------------------------
+// when game state is *Counting* 
+
+message DeadStones {
+	int32 gid = 1;
+	repeated Stone stones = 2;
+}
+
+message ResultAnswer {
+	int32 gid = 1;
+	Result result = 2;
+	bool isAgree = 3;
+}
+
+//------------------------------------------------
 
 message Game {
 	int32 gid = 1;
@@ -93,6 +110,8 @@ enum MsgType {
 	INVITE_ANSWER = 7;
 	GAME = 8;
 	END_GAME = 9;
+	DEAD_STONES = 10;
+	RESULT_ANSWER = 11;
 }
 
 //------------------------------------------------
@@ -110,6 +129,8 @@ message Msg{
 		InviteAnswer inviteAnswer = 9;
 		Game game = 10;
 		EndGame endGame = 11;
+		DeadStones deadStones = 12;
+		ResultAnswer resultAnswer = 13;
 	}
 }
 

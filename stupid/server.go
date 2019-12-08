@@ -16,6 +16,8 @@ const (
 	CMD_INVITE = 4;
 	CMD_INVITE_ANSWER = 5;
 	CMD_HAND = 6;
+	CMD_END_GAME = 7;
+	CMD_DEAD_STONES = 8;
 )
 
 // ------------------------------------------------------------
@@ -28,6 +30,8 @@ var sessionChan chan *Session
 var inviteChan chan *pb.Invite
 var inviteAnswerChan chan *pb.InviteAnswer
 var handChan chan *pb.Hand
+var endGameChan chan *pb.EndGame
+var deadStonesChan chan *pb.DeadStones
 
 var idPool *IdPool
 
@@ -54,6 +58,8 @@ func Init(){
 	inviteChan = make(chan *pb.Invite,ChanBuf)
 	inviteAnswerChan = make(chan *pb.InviteAnswer,ChanBuf)
 	handChan = make(chan *pb.Hand,ChanBuf)
+	endGameChan = make(chan *pb.EndGame,ChanBuf)
+	deadStonesChan = make(chan *pb.DeadStones,ChanBuf)
 
 	idPool = NewIdPool(IdPoolSize)
 }
@@ -155,6 +161,10 @@ func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
 func StartServ() {
 	// must init all global things frist
 	Init()
+
+	// all deadStones messages saved here
+	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
+
 	// begin to serv
 	for {
 		switch cmd := <-cmdChan; cmd {
@@ -243,19 +253,80 @@ func StartServ() {
 			hand := <- handChan
 
 			if game,ok := GetGame(hand.Gid); ok {
-				for _,p := range game.Players {
-					if p.Pid != fromSession.Player.Pid {
-						if session,ok := GetSession(p.Pid); ok {
-							msg := &pb.Msg{
-								Type: pb.MsgType_HAND,
-								Union: &pb.Msg_Hand{hand},
-							}
+				msg := &pb.Msg{
+					Type: pb.MsgType_HAND,
+					Union: &pb.Msg_Hand{hand},
+				}
+				SendToOtherPlayer(game,fromSession,msg)
+			}
+
+		case CMD_END_GAME:
+			fromSession := <- sessionChan
+			endGame := <- endGameChan
+			result := endGame.GetResult()
+
+			if game,ok := GetGame(endGame.Gid); ok {
+				// change game state first
+				if result.EndType == pb.EndType_TIMEOUT || result.EndType == pb.EndType_ADMIT {
+					game.State = pb.State_ENDED
+					game.Result = endGame.Result
+
+				}
+				// and than resend the endgame msg to the other player
+				msg := &pb.Msg{
+					Type: pb.MsgType_END_GAME,
+					Union: &pb.Msg_EndGame{endGame},
+				}
+				SendToOtherPlayer(game,fromSession,msg)
+			}
+
+		case CMD_DEAD_STONES:
+			<- sessionChan
+			deadStones := <- deadStonesChan
+			recordDeadStones = append(recordDeadStones,deadStones)
+			if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
+				msg := &pb.Msg{
+					Type: pb.MsgType_END_GAME,
+					Union: &pb.Msg_EndGame{
+						&pb.EndGame{
+							Gid: deadStones.Gid,
+							Result: CountForResult(deadStones.Gid,stones),
+						},
+					},
+				}
+				if game,ok := GetGame(deadStones.Gid); ok {
+					for _,player := range game.Players {
+						if session,ok := GetSession(player.Pid); ok {
 							SendMsg(session,msg)
 						}
 					}
 				}
 			}
 		}// switch end
+	}
+}
+
+func CountForResult(gid int32,deads []*pb.Stone) (result *pb.Result) {
+	return
+}
+
+func GetDeadStones(theDeadStones []*pb.DeadStones,gid int32) (stones []*pb.Stone,count int) {
+	for _,deadStones := range theDeadStones {
+		if deadStones.Gid == gid {
+			count += 1
+			stones = append(stones,deadStones.Stones...)
+		}
+	}
+	return
+}
+
+func SendToOtherPlayer(game *pb.Game,fromSession *Session,msg *pb.Msg) {
+	for _,p := range game.Players {
+		if p.Pid != fromSession.Player.Pid {
+			if session,ok := GetSession(p.Pid); ok {
+				SendMsg(session,msg)
+			}
+		}
 	}
 }
 
@@ -294,6 +365,17 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		cmdChan <- CMD_HAND
 		sessionChan <- session
 		handChan <- msg.GetHand()
+
+	case pb.MsgType_END_GAME:
+		cmdChan <- CMD_END_GAME
+		sessionChan <- session
+		endGameChan <- msg.GetEndGame()
+
+	case pb.MsgType_DEAD_STONES:
+		cmdChan <- CMD_DEAD_STONES
+		sessionChan <- session
+		deadStonesChan <- msg.GetDeadStones()
+
 	}
 }
 

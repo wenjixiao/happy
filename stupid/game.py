@@ -166,6 +166,9 @@ class GameFrame(wx.Frame):
 		return pb.Color.BLACK if self.game.players[self.game.blackIndex] == self.myPlayer() else pb.Color.WHITE
 
 	def putStone(self,stone):
+		if self.game.state != pb.State.RUNNING:
+			return
+
 		if self.isMyTurn():
 			self.boardPane.addStone(stone)
 			self.stopMyClock()
@@ -199,13 +202,17 @@ class GameFrame(wx.Frame):
 	def send_msg(self,msg):
 		self.GetParent().send_msg(msg)
 
+	def gameover(self,result):
+		self.stopMyClock()
+		self.game.state = pb.State.ENDED
+		self.game.result.CopyFrom(result)
+
 	def iamTimeout(self):
 		myresult = pb.Result()
 		myresult.winner = otherColor(self.myColor())
 		myresult.endType = pb.EndType.TIMEOUT
 
-		self.game.state = pb.State.ENDED
-		self.game.result.CopyFrom(myresult)
+		self.gameover(myresult)
 
 		msg = pb.Msg()
 		msg.type = pb.MsgType.END_GAME
