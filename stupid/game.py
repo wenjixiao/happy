@@ -89,11 +89,14 @@ class ClockPane(wx.Panel):
 class BoardPane(wx.Panel):
 	def __init__(self,parent,game):
 		super(BoardPane,self).__init__(parent)
+		vbox = wx.BoxSizer(wx.VERTICAL)
 		self.game = game
-		self.output_text = wx.TextCtrl(self, style = wx.TE_MULTILINE | wx.HSCROLL)
+		self.outputText = wx.TextCtrl(self, style = wx.TE_MULTILINE | wx.HSCROLL)
+		vbox.Add(self.outputText,proportion=1,flag = wx.EXPAND)
+		self.SetSizer(vbox)
 
 	def updateView(self):
-		self.output_text.SetValue(str(self.game.stones))
+		self.outputText.SetValue(str(self.game.stones))
 
 	def addStone(self,stone):
 		self.game.stones.append(stone)
@@ -115,8 +118,8 @@ class PlayGame(wx.Frame):
 
 		panel = wx.Panel(self)
 
-		self.input_text = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
-		self.input_text.Bind(wx.EVT_TEXT_ENTER,self.onMyAction)
+		self.inputText = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
+		self.inputText.Bind(wx.EVT_TEXT_ENTER,self.onMyAction)
 
 		hbox = wx.BoxSizer()
 		self.playerPanes = [PlayerPane(panel,self.game,p,c) for p,c in zip(self.game.players,self.game.clocks)]
@@ -126,8 +129,8 @@ class PlayGame(wx.Frame):
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		vbox.Add(hbox,proportion=0,flag=wx.ALIGN_CENTER)
 		self.boardPane = BoardPane(panel,self.game)
-		vbox.Add(self.boardPane,proportion=1, flag=wx.EXPAND | wx.ALL,border=4)
-		vbox.Add(self.input_text,flag=wx.EXPAND)
+		vbox.Add(self.boardPane,proportion=1, flag=wx.EXPAND)
+		vbox.Add(self.inputText,proportion=0,flag=wx.EXPAND)
 
 		panel.SetSizer(vbox)
 
@@ -175,7 +178,7 @@ class PlayGame(wx.Frame):
 		return self.boardPane.getNextColor() == self.myColor()
 
 	def onMyAction(self,event):
-		myline = self.input_text.GetValue().split()
+		myline = self.inputText.GetValue().split()
 		cmd = myline[0]
 		if cmd == "stone":
 			if self.canPutStone() and self.isMyTurn():
