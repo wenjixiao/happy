@@ -86,10 +86,7 @@ class BasicClient(wx.Frame):
 			msg = pb.Msg()
 			msg.type = pb.MsgType.DATA
 			self.send_msg(msg)
-			
-		else:
-			logging.info("***no that command!***\n")
-			
+
 		self.input_text.Clear()
 
 
@@ -114,7 +111,7 @@ class BasicClient(wx.Frame):
 				# not change,agree or refuse
 				msg1 = pb.Msg()
 				msg1.type = pb.MsgType.INVITE_ANSWER
-				msg1.inviteAnswer.isAgree = True if result == ProtoDialog.OK else False
+				msg1.inviteAnswer.agree = True if result == ProtoDialog.OK else False
 				msg1.inviteAnswer.pid = msg.invite.pid
 				msg1.inviteAnswer.proto.CopyFrom(msg.invite.proto)
 				self.send_msg(msg1)
@@ -135,9 +132,9 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.GAME_OVER:
 			if msg.gameOver.result.endType == pb.EndType.COUNT:
 				# we get the count result,we also need to ask,if he agree the count result
-		        dialog = wx.MessageDialog(self, 'Are you agree the count result?', 'Question',
+				dialog = wx.MessageDialog(self, 'Are you agree the count result?', 'Question',
 		         wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-		        result = dialog.ShowModal()
+				result = dialog.ShowModal()
 
 				msg1 = pb.Msg()
 				msg1.type = pb.MsgType.COUNT_RESULT_ANSWER
@@ -148,27 +145,22 @@ class BasicClient(wx.Frame):
 			else:
 				# timeout or admit
 				for gameFrame in self.gameFrames:
-					if gameFrame.game.gid == msg.endGame.gid:
-						gameFrame.gameover(msg.endGame.result)
+					if gameFrame.game.gid == msg.gameOver.gid:
+						gameFrame.gameover(msg.gameOver.result)
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
-	        dialog = wx.MessageDialog(self, 'Are you want to count?', 'Question', 
-	        	wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-	        result = dialog.ShowModal()
-
-			msg1 = pb.Msg()
-			msg1.type = pb.MsgType.COUNT_REQUEST_ANSWER
-			msg1.countRequestAnswer.gid = msg.countRequest.gid
-			msg1.countRequestAnswer.agree = True if result == wx.ID_YES else False
-			self.send_msg(msg1)
+			for gameFrame in self.gameFrames:
+				if gameFrame.game.gid == msg.countRequest.gid:
+					gameFrame.countRequest()
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
 			# the next thing is select dead stones,because the other player has agree
-			pass
-		else:
-			pass
-
-		self.output_text.SetValue(str(msg))
+			for gameFrame in self.gameFrames:
+				if gameFrame.game.gid == msg.countRequestAnswer.gid:
+					if msg.countRequestAnswer.agree:
+						gameFrame.beginCount()
+						
+		# self.output_text.SetValue(str(msg))
 	
 	def send_msg(self,msg):
 		if not self.async_thread.transport.is_closing():

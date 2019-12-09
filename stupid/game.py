@@ -104,7 +104,7 @@ class BoardPane(wx.Panel):
 		return self.gameFrame.game
 
 	def updateView(self):
-		self.outputText.SetValue(str(self.getGame().stones))
+		self.outputText.SetValue(str(self.getGame()))
 
 	def addStone(self,stone):
 		self.getGame().stones.append(stone)
@@ -120,7 +120,7 @@ class BoardPane(wx.Panel):
 
 class GameFrame(wx.Frame):
 	def __init__(self,parent,game):
-		super(GameFrame, self).__init__(parent, size=(400, 300))
+		super(GameFrame, self).__init__(parent, size=(400, 600))
 		self.game = game
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 
@@ -199,13 +199,54 @@ class GameFrame(wx.Frame):
 				stone.y = int(myline[2])
 				self.putStone(stone)
 
+		elif cmd == "admit":
+			result = pb.Result()
+			result.winner = otherColor(self.myColor())
+			result.endType = pb.EndType.ADMIT
+
+			self.gameover(result)
+
+			msg = pb.Msg()
+			msg.type = pb.MsgType.GAME_OVER
+			msg.gameOver.gid = self.game.gid
+			msg.gameOver.result.CopyFrom(result)
+
+			self.send_msg(msg)
+
+		elif cmd == "count":
+			msg = pb.Msg()
+			msg.type = pb.MsgType.COUNT_REQUEST
+			msg.countRequest.gid = self.game.gid
+			self.send_msg(msg)
+
 	def send_msg(self,msg):
 		self.GetParent().send_msg(msg)
+
+	def countRequest(self):
+		dialog = wx.MessageDialog(self, 'Are you want to count?', 'Question', 
+        	wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+		result = dialog.ShowModal()
+
+		isAgree = True if result == wx.ID_YES else False
+
+		msg1 = pb.Msg()
+		msg1.type = pb.MsgType.COUNT_REQUEST_ANSWER
+		msg1.countRequestAnswer.gid = self.game.gid
+		msg1.countRequestAnswer.agree = isAgree
+		self.send_msg(msg1)
+
+		if isAgree:
+			self.beginCount()
+
+	def beginCount(self):
+		logging.info("---letscount invoked---")
 
 	def gameover(self,result):
 		self.stopMyClock()
 		self.game.state = pb.State.ENDED
 		self.game.result.CopyFrom(result)
+
+		self.boardPane.updateView()
 
 	def iamTimeout(self):
 		myresult = pb.Result()
