@@ -177,7 +177,7 @@ message Invite {
 }
 
 message InviteAnswer {
-	bool isAgree = 1;
+	bool agree = 1;
 	string pid = 2;
 	Proto proto = 3;
 }

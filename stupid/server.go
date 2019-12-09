@@ -16,10 +16,11 @@ const (
 	CMD_INVITE = 4
 	CMD_INVITE_ANSWER = 5
 	CMD_HAND = 6
-	CMD_COUNT_STONE = 7
+	CMD_COUNT_REQUEST = 7
 	CMD_DEAD_STONES = 8
 	CMD_COUNT_RESULT_ANSWER = 9
 	CMD_GAME_OVER = 10
+	CMD_COUNT_REQUEST_ANSWER = 11
 )
 
 // ------------------------------------------------------------
@@ -35,6 +36,8 @@ var handChan chan *pb.Hand
 var gameOverChan chan *pb.GameOver
 var deadStonesChan chan *pb.DeadStones
 var countResultAnswerChan chan *pb.CountResultAnswer
+var countRequestChan chan *pb.CountRequest
+var countRequestAnswerChan chan *pb.CountRequestAnswer
 
 var idPool *IdPool
 
@@ -64,6 +67,8 @@ func Init(){
 	gameOverChan = make(chan *pb.GameOver,ChanBuf)
 	deadStonesChan = make(chan *pb.DeadStones,ChanBuf)
 	countResultAnswerChan = make(chan *pb.CountResultAnswer,ChanBuf)
+	countRequestChan = make(chan *pb.CountRequest,ChanBuf)
+	countRequestAnswerChan = make(chan *pb.CountRequestAnswer,ChanBuf)
 
 	idPool = NewIdPool(IdPoolSize)
 }
@@ -224,7 +229,7 @@ func StartServ() {
 		case CMD_INVITE_ANSWER:
 			fromSession := <- sessionChan
 			inviteAnswer := <- inviteAnswerChan
-			if inviteAnswer.GetIsAgree() {
+			if inviteAnswer.GetAgree() {
 				// here, we need create the game and tell players to play
 				if session,ok := GetSession(inviteAnswer.Pid); ok {
 					game := CreateGame(fromSession,session,inviteAnswer.Proto)
@@ -243,7 +248,7 @@ func StartServ() {
 						Type: pb.MsgType_INVITE_ANSWER,
 						Union: &pb.Msg_InviteAnswer{
 							&pb.InviteAnswer{
-								IsAgree: inviteAnswer.IsAgree,
+								Agree: inviteAnswer.Agree,
 								Pid: fromSession.Player.Pid,
 								Proto: ExchangeWhoFirst(inviteAnswer.Proto),
 							},
@@ -314,6 +319,29 @@ func StartServ() {
 					// Restart the game! Someone disagree,but i don't care who refuse. 
 
 				}
+			}
+
+		case CMD_COUNT_REQUEST:
+			fromSession := <- sessionChan
+			countRequest := <- countRequestChan
+
+			if game,ok := GetGame(countRequest.Gid); ok {
+				msg := &pb.Msg{
+					Type: pb.MsgType_COUNT_REQUEST,
+					Union: &pb.Msg_CountRequest{countRequest},
+				}
+				SendToOtherPlayer(game,fromSession,msg)
+			}
+
+		case CMD_COUNT_REQUEST_ANSWER:
+			fromSession := <- sessionChan
+			countRequestAnswer := <- countRequestAnswerChan
+			if game,ok := GetGame(countRequestAnswer.Gid); ok {
+				msg := &pb.Msg{
+					Type: pb.MsgType_COUNT_REQUEST_ANSWER,
+					Union: &pb.Msg_CountRequestAnswer{countRequestAnswer},
+				}
+				SendToOtherPlayer(game,fromSession,msg)
 			}
 		}// switch end
 	}
@@ -404,6 +432,17 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 	case pb.MsgType_COUNT_RESULT_ANSWER:
 		cmdChan <- CMD_COUNT_RESULT_ANSWER
 		countResultAnswerChan <- msg.GetCountResultAnswer()
+
+	case pb.MsgType_COUNT_REQUEST:
+		cmdChan <- CMD_COUNT_REQUEST
+		sessionChan <- session
+		countRequestChan <- msg.GetCountRequest()
+
+	case pb.MsgType_COUNT_REQUEST_ANSWER:
+		cmdChan <- CMD_COUNT_REQUEST_ANSWER
+		sessionChan <- session
+		countRequestAnswerChan <- msg.GetCountRequestAnswer()
+
 	}
 }
 
