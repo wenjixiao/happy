@@ -135,16 +135,16 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.GAME_OVER:
 			if msg.gameOver.result.endType == pb.EndType.COUNT:
 				# we get the count result,we also need to ask,if he agree the count result
-		        dialog = wx.MessageDialog(None, 'Are you agree the count result?', 'Question',
+		        dialog = wx.MessageDialog(self, 'Are you agree the count result?', 'Question',
 		         wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 		        result = dialog.ShowModal()
 
-				msg = pb.Msg()
-				msg.type = pb.MsgType.COUNT_RESULT_ANSWER
-				msg.countResultAnswer.gid = msg.gameOver.gid
-				msg.countResultAnswer.result.CopyFrom(msg.gameOver.result)
-				msg.countResultAnswer.agree = True if result == wx.ID_YES else False
-				self.send_msg(msg)
+				msg1 = pb.Msg()
+				msg1.type = pb.MsgType.COUNT_RESULT_ANSWER
+				msg1.countResultAnswer.gid = msg.gameOver.gid
+				msg1.countResultAnswer.result.CopyFrom(msg.gameOver.result)
+				msg1.countResultAnswer.agree = True if result == wx.ID_YES else False
+				self.send_msg(msg1)
 			else:
 				# timeout or admit
 				for gameFrame in self.gameFrames:
@@ -152,8 +152,18 @@ class BasicClient(wx.Frame):
 						gameFrame.gameover(msg.endGame.result)
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
-			pass
+	        dialog = wx.MessageDialog(self, 'Are you want to count?', 'Question', 
+	        	wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+	        result = dialog.ShowModal()
+
+			msg1 = pb.Msg()
+			msg1.type = pb.MsgType.COUNT_REQUEST_ANSWER
+			msg1.countRequestAnswer.gid = msg.countRequest.gid
+			msg1.countRequestAnswer.agree = True if result == wx.ID_YES else False
+			self.send_msg(msg1)
+
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
+			# the next thing is select dead stones,because the other player has agree
 			pass
 		else:
 			pass
