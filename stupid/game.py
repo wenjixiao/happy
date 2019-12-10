@@ -5,31 +5,40 @@ import logging
 def otherColor(color):
 	return pb.Color.BLACK if color == pb.Color.WHITE else pb.Color.WHITE
 
-class PlayerPane(wx.Panel):
-	def __init__(self,parent,gameFrame,player,clock):
-		super(PlayerPane,self).__init__(parent)
+class PlayersPane(wx.Panel):
+	def __init__(self,parent,gameFrame):
+		super(PlayersPane,self).__init__(parent)
 		self.gameFrame = gameFrame
-		self.player = player
-		self.pidSt = wx.StaticText(self,label = self.getPidStr())
-		self.levelSt = wx.StaticText(self,label = self.getLevelStr())
-		self.clockPane = ClockPane(self,self.gameFrame,clock)
+		self.guide = {}
+		# self.SetBackgroundColour(wx.BLUE)
 
-		grid = wx.FlexGridSizer(rows=1,cols=3,vgap=2,hgap=2)
-		grid.Add(self.pidSt,proportion=1,flag = wx.ALIGN_CENTER)
-		grid.Add(self.levelSt,proportion=1,flag = wx.ALIGN_CENTER)
-		grid.Add(self.clockPane,proportion=2,flag = wx.EXPAND)
+		grid = wx.GridBagSizer(3,2)
 
-		grid.AddGrowableCol(0, 1)
-		grid.AddGrowableCol(1, 1)
-		grid.AddGrowableCol(2, 1)
+		for col,(player,clock) in enumerate(zip(self.getGame().players,self.getGame().clocks)):
+			pidSt = wx.StaticText(self,label = self.getPidStr(player))
+			levelSt = wx.StaticText(self,label = self.getLevelStr(player))
+			clockPane = ClockPane(self,self.gameFrame,clock)
+
+			grid.Add(pidSt,pos=(0,col),flag=wx.ALIGN_CENTER)
+			grid.Add(levelSt,pos=(1,col),flag=wx.ALIGN_CENTER)
+			grid.Add(clockPane,pos=(2,col),flag=wx.EXPAND)
+
+			self.guide[player.pid] = clockPane
+
+		# fuck! I always forget set the grid's growable property
+		grid.AddGrowableCol(0)
+		grid.AddGrowableCol(1)
 
 		self.SetSizer(grid)
 
-	def getPidStr(self):
-		return str(self.player.pid)
+	def getGame(self):
+		return self.gameFrame.game
 
-	def getLevelStr(self):
-		return str(self.player.level)
+	def getPidStr(self,player):
+		return str(player.pid)
+
+	def getLevelStr(self,player):
+		return str(player.level)
 
 class ClockPane(wx.Panel):
 	def __init__(self,parent,gameFrame,clock):
@@ -43,11 +52,11 @@ class ClockPane(wx.Panel):
 		self.ciShuMeiCiSt = wx.StaticText(self,label = self.getCiShuMeiCiStr())
 		self.duMiaoSt = wx.StaticText(self,label = self.getDuMiaoStr())
 
-		grid = wx.GridSizer(rows=1,cols=3,vgap=2,hgap=2)
-		grid.Add(self.baoLiuSt,proportion=0,flag = wx.ALIGN_CENTER)
-		grid.Add(self.ciShuMeiCiSt,proportion=0,flag = wx.ALIGN_CENTER)
-		grid.Add(self.duMiaoSt,proportion=0,flag = wx.ALIGN_CENTER)
-		self.SetSizer(grid)
+		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(self.baoLiuSt,flag = wx.ALIGN_CENTER)
+		vbox.Add(self.ciShuMeiCiSt,flag = wx.ALIGN_CENTER)
+		vbox.Add(self.duMiaoSt,flag = wx.ALIGN_CENTER)
+		self.SetSizer(vbox)
 
 	def getPaoLiuStr(self):
 		return str(self.clock.baoLiu)
@@ -129,17 +138,13 @@ class GameFrame(wx.Frame):
 		self.inputText = wx.TextCtrl(panel,style=wx.TE_PROCESS_ENTER)
 		self.inputText.Bind(wx.EVT_TEXT_ENTER,self.onMyAction)
 
-		self.playerPanes = [PlayerPane(panel,self,p,c) for p,c in zip(self.game.players,self.game.clocks)]
+		self.playersPane = PlayersPane(panel,self)
 		self.boardPane = BoardPane(panel,self)
 		
 		vbox = wx.BoxSizer(wx.VERTICAL)
-
-		for playerPane in self.playerPanes:
-			vbox.Add(playerPane,proportion=0,flag=wx.EXPAND)
-
+		vbox.Add(self.playersPane,proportion=0,flag=wx.EXPAND)
 		vbox.Add(self.boardPane,proportion=1, flag=wx.EXPAND)
 		vbox.Add(self.inputText,proportion=0,flag=wx.EXPAND)
-
 		panel.SetSizer(vbox)
 
 		self.Show()
@@ -148,15 +153,14 @@ class GameFrame(wx.Frame):
 	def canPutStone(self):
 		return self.game.state == pb.State.RUNNING
 
+	def myClock(self):
+		return self.playersPane.guide[self.myPlayer().pid]
+
 	def startMyClock(self):
-		for playerPane in self.playerPanes:
-			if playerPane.player == self.myPlayer():
-				playerPane.clockPane.start()
+		self.myClock().start()
 
 	def stopMyClock(self):
-		for playerPane in self.playerPanes:
-			if playerPane.player == self.myPlayer():
-				playerPane.clockPane.stop()
+		self.myClock().stop()
 
 	def checkStart(self):
 		if self.canPutStone() and self.isMyTurn():
