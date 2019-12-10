@@ -125,9 +125,7 @@ class BasicClient(wx.Frame):
 			self.gameFrames.append(GameFrame(self,msg.game))
 
 		elif msg.type == pb.MsgType.HAND:
-			for gameFrame in self.gameFrames:
-				if gameFrame.game.gid == msg.hand.gid:
-					gameFrame.putStone(msg.hand.stone)
+			self.withGameFrame(msg.hand.gid,lambda gf: gf.putStone(msg.hand.stone))
 
 		elif msg.type == pb.MsgType.GAME_OVER:
 			if msg.gameOver.result.endType == pb.EndType.COUNT:
@@ -144,22 +142,22 @@ class BasicClient(wx.Frame):
 				self.send_msg(msg1)
 			else:
 				# timeout or admit
-				self.soso(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
+				self.withGameFrame(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
-			self.soso(msg.countRequest.gid,lambda gf: gf.countRequest())
+			self.withGameFrame(msg.countRequest.gid,lambda gf: gf.countRequest())
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
 			# the next thing is select dead stones,because the other player has agree
 			def myfun(gf):
 				if msg.countRequestAnswer.agree:
 					gf.selectDeadStones()
-			self.soso(msg.countRequestAnswer.gid,myfun)
+			self.withGameFrame(msg.countRequestAnswer.gid,myfun)
 		
 		elif msg.type == pb.MsgType.DO_CONTINUE:
-			self.soso(msg.doContinue.gid,lambda gf: gf.doContinue())
+			self.withGameFrame(msg.doContinue.gid,lambda gf: gf.doContinue())
 
-	def soso(self,gid,myfun):
+	def withGameFrame(self,gid,myfun):
 		for gameFrame in self.gameFrames:
 			if gameFrame.game.gid == gid:
 				myfun(gameFrame)

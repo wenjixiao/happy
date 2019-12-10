@@ -245,11 +245,11 @@ class GameFrame(wx.Frame):
 		self.send_msg(msg1)
 
 		if isAgree:
-			self.doPaused()
 			self.selectDeadStones()
 
 	def selectDeadStones(self):
-		logging.info("---letscount invoked---")
+		logging.info("---selectDeadStones invoked---")
+		self.doPaused()
 
 	def gameover(self,result):
 		self.stopMyClock()

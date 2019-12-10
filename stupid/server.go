@@ -346,6 +346,9 @@ func StartServ() {
 			fromSession := <- sessionChan
 			countRequestAnswer := <- countRequestAnswerChan
 			if game,ok := GetGame(countRequestAnswer.Gid); ok {
+				
+				game.State = pb.State_PAUSED
+
 				msg := &pb.Msg{
 					Type: pb.MsgType_COUNT_REQUEST_ANSWER,
 					Union: &pb.Msg_CountRequestAnswer{countRequestAnswer},
