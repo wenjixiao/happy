@@ -132,7 +132,7 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.GAME_OVER:
 			if msg.gameOver.result.endType == pb.EndType.COUNT:
 				# we get the count result,we also need to ask,if he agree the count result
-				dialog = wx.MessageDialog(self, 'Are you agree the count result?', 'Question',
+				dialog = wx.MessageDialog(self, 'Are you agree the count result of gameover?', 'Question',
 		         wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 				result = dialog.ShowModal()
 
@@ -144,24 +144,26 @@ class BasicClient(wx.Frame):
 				self.send_msg(msg1)
 			else:
 				# timeout or admit
-				for gameFrame in self.gameFrames:
-					if gameFrame.game.gid == msg.gameOver.gid:
-						gameFrame.gameover(msg.gameOver.result)
+				self.soso(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
-			for gameFrame in self.gameFrames:
-				if gameFrame.game.gid == msg.countRequest.gid:
-					gameFrame.countRequest()
+			self.soso(msg.countRequest.gid,lambda gf: gf.countRequest())
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
 			# the next thing is select dead stones,because the other player has agree
-			for gameFrame in self.gameFrames:
-				if gameFrame.game.gid == msg.countRequestAnswer.gid:
-					if msg.countRequestAnswer.agree:
-						gameFrame.beginCount()
-						
-		# self.output_text.SetValue(str(msg))
-	
+			def myfun(gf):
+				if msg.countRequestAnswer.agree:
+					gf.selectDeadStones()
+			self.soso(msg.countRequestAnswer.gid,myfun)
+		
+		elif msg.type == pb.MsgType.DO_CONTINUE:
+			self.soso(msg.doContinue.gid,lambda gf: gf.doContinue())
+
+	def soso(self,gid,myfun):
+		for gameFrame in self.gameFrames:
+			if gameFrame.game.gid == gid:
+				myfun(gameFrame)
+
 	def send_msg(self,msg):
 		if not self.async_thread.transport.is_closing():
 			self.async_thread.send_msg(msg)

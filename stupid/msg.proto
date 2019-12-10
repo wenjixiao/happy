@@ -56,6 +56,10 @@ message GameOver {
 	Result result = 2;
 }
 
+message DoContinue {
+	int32 gid = 1;
+}
+
 //------------------------------------------------
 // when game state is *Counting* 
 
@@ -123,6 +127,7 @@ enum MsgType {
 	COUNT_RESULT_ANSWER = 11;
 	GAME_OVER = 12;
 	COUNT_REQUEST_ANSWER = 13;
+	DO_CONTINUE = 14;
 }
 
 //------------------------------------------------
@@ -144,6 +149,7 @@ message Msg{
 		CountResultAnswer countResultAnswer = 13;
 		GameOver gameOver = 14;
 		CountRequestAnswer countRequestAnswer = 15;
+		DoContinue doContinue = 16;
 	}
 }
 

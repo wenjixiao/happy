@@ -300,24 +300,33 @@ func StartServ() {
 						},
 					},
 				}
-				if game,ok := GetGame(deadStones.Gid); ok {
-					for _,player := range game.Players {
-						if session,ok := GetSession(player.Pid); ok {
-							SendMsg(session,msg)
-						}
-					}
-				}
+				SendToAllPlayer(deadStones.Gid,msg)
 			}
 
 		case CMD_COUNT_RESULT_ANSWER:
+			// gameover by count
 			countResultAnswer := <- countResultAnswerChan
 			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
 			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
 				if agree == 2 {
 					// Gameover
+					msg := &pb.Msg{
+						Type: pb.MsgType_GAME_OVER,
+						Union: &pb.Msg_GameOver{
+							&pb.GameOver{
+								Gid: countResultAnswer.Gid,
+								Result: countResultAnswer.Result,
+							},
+						},
+					}
+					SendToAllPlayer(countResultAnswer.Gid,msg)
 				}else{
 					// Restart the game! Someone disagree,but i don't care who refuse. 
-
+					msg := &pb.Msg{
+						Type: pb.MsgType_DO_CONTINUE,
+						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}},
+					}
+					SendToAllPlayer(countResultAnswer.Gid,msg)
 				}
 			}
 
@@ -372,6 +381,16 @@ func GetDeadStones(theDeadStones []*pb.DeadStones,gid int32) (stones []*pb.Stone
 		}
 	}
 	return
+}
+
+func SendToAllPlayer(gid int32,msg *pb.Msg) {
+	if game,ok := GetGame(gid); ok {
+		for _,p := range game.Players {
+			if session,ok := GetSession(p.Pid); ok {
+				SendMsg(session,msg)
+			}
+		}
+	}
 }
 
 func SendToOtherPlayer(game *pb.Game,fromSession *Session,msg *pb.Msg) {

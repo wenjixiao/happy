@@ -96,9 +96,14 @@ class ClockPane(wx.Panel):
 	def start(self):
 		self.timer.Start(1000)
 
+	def paused(self):
+		if self.timer.IsRunning():
+			self.timer.Stop()
+
 	def stop(self):
-		self.timer.Stop()
-		self.resetDuMiao()
+		if self.timer.IsRunning():
+			self.timer.Stop()
+			self.resetDuMiao()
 
 class BoardPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
@@ -240,9 +245,10 @@ class GameFrame(wx.Frame):
 		self.send_msg(msg1)
 
 		if isAgree:
-			self.beginCount()
+			self.doPaused()
+			self.selectDeadStones()
 
-	def beginCount(self):
+	def selectDeadStones(self):
 		logging.info("---letscount invoked---")
 
 	def gameover(self,result):
@@ -251,6 +257,17 @@ class GameFrame(wx.Frame):
 		self.game.result.CopyFrom(result)
 
 		self.boardPane.updateView()
+
+	def doPaused(self):
+		# pause me
+		self.game.state == pb.State.PAUSED
+		for clockPane in self.playersPane.guide.values():
+			clockPane.paused()
+
+	def doContinue(self):
+		# restart the game
+		self.game.state == pb.State.RUNNING
+		self.checkStart()
 
 	def iamTimeout(self):
 		myresult = pb.Result()
