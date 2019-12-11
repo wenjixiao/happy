@@ -50,6 +50,8 @@ type Session struct {
 	Player *pb.Player
 }
 
+// ------------------------------------------------------------
+
 type GidResult struct {
 	Gid int32
 	Result *pb.Result
@@ -196,12 +198,7 @@ func StartServ() {
 					Union: &pb.Msg_LoginOk{
 						&pb.LoginOk{
 							Player: session.Player,
-							Data: &pb.Data{
-								Players: GetPlayers(),
-							},
-						},
-					},
-				}
+							Data: &pb.Data{Players: GetPlayers()}}}}
 				SendMsg(session, msg)
 
 			case CMD_REMOVE_SESSION:
@@ -212,11 +209,7 @@ func StartServ() {
 				fromSession := <- sessionChan
 				msg := &pb.Msg{
 					Type: pb.MsgType_DATA,
-					Union: &pb.Msg_Data{
-						&pb.Data{
-							Players: GetPlayers(),
-						},
-					},
+					Union: &pb.Msg_Data{&pb.Data{Players: GetPlayers()}},
 				}
 				SendMsg(fromSession, msg)
 
@@ -229,10 +222,7 @@ func StartServ() {
 						Union: &pb.Msg_Invite{
 							&pb.Invite{
 								Pid: fromSession.Player.Pid,
-								Proto: invite.Proto,
-							},
-						},
-					}
+								Proto: invite.Proto}}}
 					SendMsg(session, msg)
 				}
 
@@ -246,8 +236,7 @@ func StartServ() {
 						games = append(games,game)
 						msg := &pb.Msg{
 							Type: pb.MsgType_GAME,
-							Union: &pb.Msg_Game{game},
-						}
+							Union: &pb.Msg_Game{game}}
 						SendMsg(fromSession,msg)
 						SendMsg(session,msg)
 					}
@@ -260,10 +249,7 @@ func StartServ() {
 								&pb.InviteAnswer{
 									Agree: inviteAnswer.Agree,
 									Pid: fromSession.Player.Pid,
-									Proto: ExchangeWhoFirst(inviteAnswer.Proto),
-								},
-							},
-						}
+									Proto: ExchangeWhoFirst(inviteAnswer.Proto)}}}
 						SendMsg(session, msg)
 					}
 				}
@@ -275,8 +261,7 @@ func StartServ() {
 				if game,ok := GetGame(hand.Gid); ok {
 					msg := &pb.Msg{
 						Type: pb.MsgType_HAND,
-						Union: &pb.Msg_Hand{hand},
-					}
+						Union: &pb.Msg_Hand{hand}}
 					SendToOtherPlayer(game,fromSession,msg)
 				}
 
@@ -292,8 +277,7 @@ func StartServ() {
 					// and than resend the gameOver msg to the other player
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME_OVER,
-						Union: &pb.Msg_GameOver{gameOver},
-					}
+						Union: &pb.Msg_GameOver{gameOver}}
 					SendToOtherPlayer(game,fromSession,msg)
 				}
 
@@ -316,17 +300,13 @@ func StartServ() {
 							Union: &pb.Msg_GameOver{
 								&pb.GameOver{
 									Gid: countResultAnswer.Gid,
-									Result: countResultAnswer.Result,
-								},
-							},
-						}
+									Result: countResultAnswer.Result}}}
 						SendToAllPlayer(countResultAnswer.Gid,msg)
 					}else{
 						// Restart the game! Someone disagree,but i don't care who refuse. 
 						msg := &pb.Msg{
 							Type: pb.MsgType_DO_CONTINUE,
-							Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}},
-						}
+							Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}}}
 						SendToAllPlayer(countResultAnswer.Gid,msg)
 					}
 				}
@@ -338,8 +318,7 @@ func StartServ() {
 				if game,ok := GetGame(countRequest.Gid); ok {
 					msg := &pb.Msg{
 						Type: pb.MsgType_COUNT_REQUEST,
-						Union: &pb.Msg_CountRequest{countRequest},
-					}
+						Union: &pb.Msg_CountRequest{countRequest}}
 					SendToOtherPlayer(game,fromSession,msg)
 				}
 
@@ -352,8 +331,7 @@ func StartServ() {
 
 					msg := &pb.Msg{
 						Type: pb.MsgType_COUNT_REQUEST_ANSWER,
-						Union: &pb.Msg_CountRequestAnswer{countRequestAnswer},
-					}
+						Union: &pb.Msg_CountRequestAnswer{countRequestAnswer}}
 					SendToOtherPlayer(game,fromSession,msg)
 				}
 
@@ -365,10 +343,7 @@ func StartServ() {
 				Union: &pb.Msg_GameOver{
 					&pb.GameOver{
 						Gid: gidResult.Gid,
-						Result: gidResult.Result,
-					},
-				},
-			}
+						Result: gidResult.Result}}}
 			SendToAllPlayer(gidResult.Gid,msg)
 		} // select ended
 	} // for ended
@@ -390,11 +365,6 @@ func ProcessCount(gid int32,deads []*pb.Stone) {
 	var result *pb.Result
 	// @todo Here,we compute the game result
 	gidResultChan <- &GidResult{gid,result}
-}
-
-func CountForResult(gid int32,deads []*pb.Stone) (result *pb.Result) {
-	// @todo 
-	return
 }
 
 func GetDeadStones(theDeadStones []*pb.DeadStones,gid int32) (stones []*pb.Stone,count int) {
