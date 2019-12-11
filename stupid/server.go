@@ -72,6 +72,11 @@ type MyCountRequestAnswer struct {
 	CountRequestAnswer *pb.CountRequestAnswer
 }
 
+type MySessionMsg struct {
+	WithSession
+	Msg *pb.Msg
+}
+
 var sessions []*Session
 var games []*pb.Game
 
@@ -85,6 +90,7 @@ var myDeadStonesChan chan *MyDeadStones
 var myCountResultAnswerChan chan *MyCountResultAnswer
 var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
+var mySessionMsgChan chan *MySessionMsg
 
 var idPool *IdPool
 
@@ -110,6 +116,7 @@ func Init(){
 	myCountResultAnswerChan = make(chan *MyCountResultAnswer,ChanBuf)
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
+	mySessionMsgChan = make(chan *MySessionMsg,ChanBuf*2)
 }
 
 func AddSession(session *Session) {
@@ -203,15 +210,15 @@ func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
 	return proto
 }
 
-func Serv() {
+func Dispatch() {
 	// must init all global things frist
-	Init()
+	// Init()
 
 	// all deadStones messages saved here
 	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
 	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
 
-	// begin to serv
+	// begin
 	for {
 		select {
 		case myOpSession := <-myOpSessionChan:
@@ -224,7 +231,7 @@ func Serv() {
 						&pb.LoginOk{
 							Player: myOpSession.Session.Player,
 							Data: &pb.Data{Players: GetPlayers()}}}}
-				SendMsg(myOpSession.Session, msg)
+				SendMessage(myOpSession.Session, msg)
 
 			case OP_REMOVE_SESSION:
 				RemoveSession(myOpSession.Session)
@@ -234,7 +241,7 @@ func Serv() {
 					Type: pb.MsgType_DATA,
 					Union: &pb.Msg_Data{&pb.Data{Players: GetPlayers()}},
 				}
-				SendMsg(myOpSession.Session, msg)
+				SendMessage(myOpSession.Session, msg)
 			}
 
 		case myInvite := <-myInviteChan:
@@ -247,7 +254,7 @@ func Serv() {
 						&pb.Invite{
 							Pid: fromSession.Player.Pid,
 							Proto: invite.Proto}}}
-				SendMsg(session, msg)
+				SendMessage(session, msg)
 			}
 
 		case myInviteAnswer := <-myInviteAnswerChan:
@@ -261,8 +268,8 @@ func Serv() {
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME,
 						Union: &pb.Msg_Game{game}}
-					SendMsg(fromSession,msg)
-					SendMsg(session,msg)
+					SendMessage(fromSession,msg)
+					SendMessage(session,msg)
 				}
 			}else{
 				// here, we need to notify the player your answer who invited you
@@ -274,7 +281,7 @@ func Serv() {
 								Agree: inviteAnswer.Agree,
 								Pid: fromSession.Player.Pid,
 								Proto: ExchangeWhoFirst(inviteAnswer.Proto)}}}
-					SendMsg(session, msg)
+					SendMessage(session, msg)
 				}
 			}
 
@@ -401,7 +408,7 @@ func SendToAllPlayer(gid int32,msg *pb.Msg) {
 	if game,ok := GetGame(gid); ok {
 		for _,p := range game.Players {
 			if session,ok := GetSession(p.Pid); ok {
-				SendMsg(session,msg)
+				SendMessage(session,msg)
 			}
 		}
 	}
@@ -411,10 +418,20 @@ func SendToOtherPlayer(game *pb.Game,fromSession *Session,msg *pb.Msg) {
 	for _,p := range game.Players {
 		if p.Pid != fromSession.Player.Pid {
 			if session,ok := GetSession(p.Pid); ok {
-				SendMsg(session,msg)
+				SendMessage(session,msg)
 			}
 		}
 	}
+}
+
+func MySendMsg(){
+	for mySessionMsg := range mySessionMsgChan {
+		SendMsg(mySessionMsg.Session,mySessionMsg.Msg)
+	}
+}
+
+func SendMessage(session *Session,msg *pb.Msg) {
+	mySessionMsgChan <- &MySessionMsg{WithSession{session},msg}
 }
 
 func ProcessMsg(session *Session, msg *pb.Msg) {
@@ -466,6 +483,8 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 // ------------------------------------------------------------
 
 func main() {
-	go Serv()
+	Init()
+	go MySendMsg()
+	go Dispatch()
 	Listen()
 }
