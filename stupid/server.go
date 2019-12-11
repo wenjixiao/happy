@@ -10,38 +10,10 @@ import (
 )
 
 const (
-	CMD_ADD_SESSION = 1
-	CMD_REMOVE_SESSION = 2
-	CMD_DATA =3
-	CMD_INVITE = 4
-	CMD_INVITE_ANSWER = 5
-	CMD_HAND = 6
-	CMD_COUNT_REQUEST = 7
-	CMD_DEAD_STONES = 8
-	CMD_COUNT_RESULT_ANSWER = 9
-	CMD_GAME_OVER = 10
-	CMD_COUNT_REQUEST_ANSWER = 11
+	OP_ADD_SESSION = 1
+	OP_REMOVE_SESSION = 2
+	OP_DATA_SESSION = 3
 )
-
-// ------------------------------------------------------------
-
-var sessions []*Session
-var games []*pb.Game
-
-var cmdChan chan int
-var sessionChan chan *Session
-var inviteChan chan *pb.Invite
-var inviteAnswerChan chan *pb.InviteAnswer
-var handChan chan *pb.Hand
-var gameOverChan chan *pb.GameOver
-var deadStonesChan chan *pb.DeadStones
-var countResultAnswerChan chan *pb.CountResultAnswer
-var countRequestChan chan *pb.CountRequest
-var countRequestAnswerChan chan *pb.CountRequestAnswer
-
-var gidResultChan chan *GidResult
-
-var idPool *IdPool
 
 // ------------------------------------------------------------
 
@@ -52,10 +24,75 @@ type Session struct {
 
 // ------------------------------------------------------------
 
-type GidResult struct {
+type MyGidResult struct {
 	Gid int32
 	Result *pb.Result
 }
+
+type WithSession struct {
+	Session *Session
+}
+
+type MyOpSession struct {
+	WithSession
+	Op int
+}
+
+type MyInvite struct {
+	WithSession
+	Invite *pb.Invite
+}
+
+type MyInviteAnswer struct {
+	WithSession
+	InviteAnswer *pb.InviteAnswer
+}
+
+type MyHand struct {
+	WithSession
+	Hand *pb.Hand
+}
+
+type MyGameOver struct {
+	WithSession
+	GameOver *pb.GameOver
+}
+
+type MyDeadStones struct {
+	DeadStones *pb.DeadStones		
+} 
+
+type MyCountResultAnswer struct {
+	CountResultAnswer *pb.CountResultAnswer
+}
+
+type MyCountRequest struct {
+	WithSession
+	CountRequest *pb.CountRequest	
+}
+
+type MyCountRequestAnswer struct {
+	WithSession
+	CountRequestAnswer *pb.CountRequestAnswer
+}
+
+// ------------------------------------------------------------
+
+var sessions []*Session
+var games []*pb.Game
+
+var myGidResultChan chan *MyGidResult
+var myOpSessionChan chan *MyOpSession
+var myInviteChan chan *MyInvite
+var myInviteAnswerChan chan *MyInviteAnswer
+var myHandChan chan *MyHand
+var myGameOverChan chan *MyGameOver
+var myDeadStonesChan chan *MyDeadStones
+var myCountResultAnswerChan chan *MyCountResultAnswer
+var myCountRequestChan chan *MyCountRequest
+var myCountRequestAnswerChan chan *MyCountRequestAnswer
+
+var idPool *IdPool
 
 // ------------------------------------------------------------
 
@@ -68,19 +105,19 @@ func Init(){
 	sessions  = []*Session{}
 	games = []*pb.Game{}
 
-	cmdChan = make(chan int,ChanBuf)
-	sessionChan = make(chan *Session,ChanBuf)
-	inviteChan = make(chan *pb.Invite,ChanBuf)
-	inviteAnswerChan = make(chan *pb.InviteAnswer,ChanBuf)
-	handChan = make(chan *pb.Hand,ChanBuf)
-	gameOverChan = make(chan *pb.GameOver,ChanBuf)
-	deadStonesChan = make(chan *pb.DeadStones,ChanBuf)
-	countResultAnswerChan = make(chan *pb.CountResultAnswer,ChanBuf)
-	countRequestChan = make(chan *pb.CountRequest,ChanBuf)
-	countRequestAnswerChan = make(chan *pb.CountRequestAnswer,ChanBuf)
-	gidResultChan = make(chan *GidResult,ChanBuf)
-
 	idPool = NewIdPool(IdPoolSize)
+// ------------------------------------------------------------
+
+	myGidResultChan = make(chan *MyGidResult,ChanBuf)
+	myOpSessionChan = make(chan *MyOpSession,ChanBuf)
+	myInviteChan = make(chan *MyInvite,ChanBuf)
+	myInviteAnswerChan = make(chan *MyInviteAnswer,ChanBuf)
+	myHandChan = make(chan *MyHand,ChanBuf)
+	myGameOverChan = make(chan *MyGameOver,ChanBuf)
+	myDeadStonesChan = make(chan *MyDeadStones,ChanBuf)
+	myCountResultAnswerChan = make(chan *MyCountResultAnswer,ChanBuf)
+	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
+	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
 }
 
 // ------------------------------------------------------------
@@ -129,8 +166,9 @@ func GetPlayers() (players []*pb.Player) {
 func Leave(session *Session) {
 	if session.Player != nil {
 		session.Player = nil
-		cmdChan <- CMD_REMOVE_SESSION
-		sessionChan <- session
+		myOpSessionChan <- &MyOpSession{WithSession{session},OP_REMOVE_SESSION}
+		// cmdChan <- CMD_REMOVE_SESSION
+		// sessionChan <- session
 	}
 }
 
@@ -177,7 +215,7 @@ func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
 	return proto
 }
 
-func StartServ() {
+func Serv() {
 	// must init all global things frist
 	Init()
 
@@ -188,163 +226,157 @@ func StartServ() {
 	// begin to serv
 	for {
 		select {
-		case cmd := <-cmdChan:
-			switch cmd {
-			case CMD_ADD_SESSION:
-				session := <- sessionChan
-				AddSession(session)
+		case myOpSession := <-myOpSessionChan:
+			switch myOpSession.Op {
+			case OP_ADD_SESSION:
+				AddSession(myOpSession.Session)
 				msg := &pb.Msg{
 					Type: pb.MsgType_LOGIN_OK,
 					Union: &pb.Msg_LoginOk{
 						&pb.LoginOk{
-							Player: session.Player,
+							Player: myOpSession.Session.Player,
 							Data: &pb.Data{Players: GetPlayers()}}}}
-				SendMsg(session, msg)
+				SendMsg(myOpSession.Session, msg)
 
-			case CMD_REMOVE_SESSION:
-				session := <- sessionChan
-				RemoveSession(session)
+			case OP_REMOVE_SESSION:
+				RemoveSession(myOpSession.Session)
 
-			case CMD_DATA:
-				fromSession := <- sessionChan
+			case OP_DATA_SESSION:
 				msg := &pb.Msg{
 					Type: pb.MsgType_DATA,
 					Union: &pb.Msg_Data{&pb.Data{Players: GetPlayers()}},
 				}
-				SendMsg(fromSession, msg)
+				SendMsg(myOpSession.Session, msg)
+			}
 
-			case CMD_INVITE:
-				fromSession := <- sessionChan
-				invite := <- inviteChan
-				if session,ok := GetSession(invite.Pid); ok {
+		case myInvite := <-myInviteChan:
+			fromSession := myInvite.Session
+			invite := myInvite.Invite
+			if session,ok := GetSession(invite.Pid); ok {
+				msg := &pb.Msg{
+					Type: pb.MsgType_INVITE,
+					Union: &pb.Msg_Invite{
+						&pb.Invite{
+							Pid: fromSession.Player.Pid,
+							Proto: invite.Proto}}}
+				SendMsg(session, msg)
+			}
+
+		case myInviteAnswer := <-myInviteAnswerChan:
+			fromSession := myInviteAnswer.Session
+			inviteAnswer := myInviteAnswer.InviteAnswer
+			if inviteAnswer.GetAgree() {
+				// here, we need create the game and tell players to play
+				if session,ok := GetSession(inviteAnswer.Pid); ok {
+					game := CreateGame(fromSession,session,inviteAnswer.Proto)
+					games = append(games,game)
 					msg := &pb.Msg{
-						Type: pb.MsgType_INVITE,
-						Union: &pb.Msg_Invite{
-							&pb.Invite{
+						Type: pb.MsgType_GAME,
+						Union: &pb.Msg_Game{game}}
+					SendMsg(fromSession,msg)
+					SendMsg(session,msg)
+				}
+			}else{
+				// here, we need to notify the player your answer who invited you
+				if session,ok := GetSession(inviteAnswer.Pid); ok {
+					msg := &pb.Msg{
+						Type: pb.MsgType_INVITE_ANSWER,
+						Union: &pb.Msg_InviteAnswer{
+							&pb.InviteAnswer{
+								Agree: inviteAnswer.Agree,
 								Pid: fromSession.Player.Pid,
-								Proto: invite.Proto}}}
+								Proto: ExchangeWhoFirst(inviteAnswer.Proto)}}}
 					SendMsg(session, msg)
 				}
+			}
 
-			case CMD_INVITE_ANSWER:
-				fromSession := <- sessionChan
-				inviteAnswer := <- inviteAnswerChan
-				if inviteAnswer.GetAgree() {
-					// here, we need create the game and tell players to play
-					if session,ok := GetSession(inviteAnswer.Pid); ok {
-						game := CreateGame(fromSession,session,inviteAnswer.Proto)
-						games = append(games,game)
-						msg := &pb.Msg{
-							Type: pb.MsgType_GAME,
-							Union: &pb.Msg_Game{game}}
-						SendMsg(fromSession,msg)
-						SendMsg(session,msg)
-					}
-				}else{
-					// here, we need to notify the player your answer who invited you
-					if session,ok := GetSession(inviteAnswer.Pid); ok {
-						msg := &pb.Msg{
-							Type: pb.MsgType_INVITE_ANSWER,
-							Union: &pb.Msg_InviteAnswer{
-								&pb.InviteAnswer{
-									Agree: inviteAnswer.Agree,
-									Pid: fromSession.Player.Pid,
-									Proto: ExchangeWhoFirst(inviteAnswer.Proto)}}}
-						SendMsg(session, msg)
-					}
-				}
+		case myHand := <-myHandChan:
+			if game,ok := GetGame(myHand.Hand.Gid); ok {
+				msg := &pb.Msg{
+					Type: pb.MsgType_HAND,
+					Union: &pb.Msg_Hand{myHand.Hand}}
+				SendToOtherPlayer(game,myHand.Session,msg)
+			}
 
-			case CMD_HAND:
-				fromSession := <- sessionChan
-				hand := <- handChan
+		case myGameOver := <-myGameOverChan:
+			fromSession := myGameOver.Session
+			gameOver := myGameOver.GameOver
 
-				if game,ok := GetGame(hand.Gid); ok {
-					msg := &pb.Msg{
-						Type: pb.MsgType_HAND,
-						Union: &pb.Msg_Hand{hand}}
-					SendToOtherPlayer(game,fromSession,msg)
-				}
+			if game,ok := GetGame(gameOver.Gid); ok {
+				// change game state first
+				game.State = pb.State_ENDED
+				game.Result = gameOver.Result
 
-			case CMD_GAME_OVER:
-				fromSession := <- sessionChan
-				gameOver := <- gameOverChan
+				// and than resend the gameOver msg to the other player
+				msg := &pb.Msg{
+					Type: pb.MsgType_GAME_OVER,
+					Union: &pb.Msg_GameOver{gameOver}}
+				SendToOtherPlayer(game,fromSession,msg)
+			}
 
-				if game,ok := GetGame(gameOver.Gid); ok {
-					// change game state first
-					game.State = pb.State_ENDED
-					game.Result = gameOver.Result
+		case myDeadStones := <-myDeadStonesChan:
+			deadStones := myDeadStones.DeadStones
+			recordDeadStones = append(recordDeadStones,deadStones)
+			if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
+				go ProcessCount(deadStones.Gid,stones)
+			}
 
-					// and than resend the gameOver msg to the other player
+		case myCountResultAnswer := <-myCountResultAnswerChan:
+			// gameover by count
+			countResultAnswer := myCountResultAnswer.CountResultAnswer
+			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
+			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
+				if agree == 2 {
+					// Gameover
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME_OVER,
-						Union: &pb.Msg_GameOver{gameOver}}
-					SendToOtherPlayer(game,fromSession,msg)
-				}
-
-			case CMD_DEAD_STONES:
-				deadStones := <- deadStonesChan
-				recordDeadStones = append(recordDeadStones,deadStones)
-				if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
-					go ProcessCount(deadStones.Gid,stones)
-				}
-
-			case CMD_COUNT_RESULT_ANSWER:
-				// gameover by count
-				countResultAnswer := <- countResultAnswerChan
-				recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
-				if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
-					if agree == 2 {
-						// Gameover
-						msg := &pb.Msg{
-							Type: pb.MsgType_GAME_OVER,
-							Union: &pb.Msg_GameOver{
-								&pb.GameOver{
-									Gid: countResultAnswer.Gid,
-									Result: countResultAnswer.Result}}}
-						SendToAllPlayer(countResultAnswer.Gid,msg)
-					}else{
-						// Restart the game! Someone disagree,but i don't care who refuse. 
-						msg := &pb.Msg{
-							Type: pb.MsgType_DO_CONTINUE,
-							Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}}}
-						SendToAllPlayer(countResultAnswer.Gid,msg)
-					}
-				}
-
-			case CMD_COUNT_REQUEST:
-				fromSession := <- sessionChan
-				countRequest := <- countRequestChan
-
-				if game,ok := GetGame(countRequest.Gid); ok {
+						Union: &pb.Msg_GameOver{
+							&pb.GameOver{
+								Gid: countResultAnswer.Gid,
+								Result: countResultAnswer.Result}}}
+					SendToAllPlayer(countResultAnswer.Gid,msg)
+				}else{
+					// Restart the game! Someone disagree,but i don't care who refuse. 
 					msg := &pb.Msg{
-						Type: pb.MsgType_COUNT_REQUEST,
-						Union: &pb.Msg_CountRequest{countRequest}}
-					SendToOtherPlayer(game,fromSession,msg)
+						Type: pb.MsgType_DO_CONTINUE,
+						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}}}
+					SendToAllPlayer(countResultAnswer.Gid,msg)
 				}
+			}
 
-			case CMD_COUNT_REQUEST_ANSWER:
-				fromSession := <- sessionChan
-				countRequestAnswer := <- countRequestAnswerChan
-				if game,ok := GetGame(countRequestAnswer.Gid); ok {
+		case myCountRequest := <-myCountRequestChan:
+			fromSession := myCountRequest.Session
+			countRequest := myCountRequest.CountRequest
 
-					game.State = pb.State_PAUSED
+			if game,ok := GetGame(countRequest.Gid); ok {
+				msg := &pb.Msg{
+					Type: pb.MsgType_COUNT_REQUEST,
+					Union: &pb.Msg_CountRequest{countRequest}}
+				SendToOtherPlayer(game,fromSession,msg)
+			}
 
-					msg := &pb.Msg{
-						Type: pb.MsgType_COUNT_REQUEST_ANSWER,
-						Union: &pb.Msg_CountRequestAnswer{countRequestAnswer}}
-					SendToOtherPlayer(game,fromSession,msg)
-				}
+		case myCountRequestAnswer := <-myCountRequestAnswerChan:
+			fromSession := myCountRequestAnswer.Session
+			countRequestAnswer := myCountRequestAnswer.CountRequestAnswer
+			if game,ok := GetGame(countRequestAnswer.Gid); ok {
 
-			} // switch ended
+				game.State = pb.State_PAUSED
 
-		case gidResult := <-gidResultChan:
+				msg := &pb.Msg{
+					Type: pb.MsgType_COUNT_REQUEST_ANSWER,
+					Union: &pb.Msg_CountRequestAnswer{countRequestAnswer}}
+				SendToOtherPlayer(game,fromSession,msg)
+			}
+
+		case myGidResult := <-myGidResultChan:
 			msg := &pb.Msg{
 				Type: pb.MsgType_GAME_OVER,
 				Union: &pb.Msg_GameOver{
 					&pb.GameOver{
-						Gid: gidResult.Gid,
-						Result: gidResult.Result}}}
-			SendToAllPlayer(gidResult.Gid,msg)
+						Gid: myGidResult.Gid,
+						Result: myGidResult.Result}}}
+			SendToAllPlayer(myGidResult.Gid,msg)
+			
 		} // select ended
 	} // for ended
 }
@@ -364,7 +396,7 @@ func AgreeCountResultAnswers(theCountResultAnswers []*pb.CountResultAnswer,gid i
 func ProcessCount(gid int32,deads []*pb.Stone) {
 	var result *pb.Result
 	// @todo Here,we compute the game result
-	gidResultChan <- &GidResult{gid,result}
+	myGidResultChan <- &MyGidResult{gid,result}
 }
 
 func GetDeadStones(theDeadStones []*pb.DeadStones,gid int32) (stones []*pb.Stone,count int) {
@@ -404,57 +436,41 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		login := msg.GetLogin()
 		if myplayer,ok := GetPlayer(login.Pid,login.Passwd); ok {
 			session.Player = myplayer
-			cmdChan <- CMD_ADD_SESSION
-			sessionChan <- session
+			myOpSessionChan <- &MyOpSession{WithSession{session},OP_ADD_SESSION}
 		}else{
 			// relogin
 			session.Player = myplayer
 		}
 
 	case pb.MsgType_DATA:
-		cmdChan <- CMD_DATA
-		sessionChan <- session
+		myOpSessionChan <- &MyOpSession{WithSession{session},OP_DATA_SESSION}
 
 	case pb.MsgType_LOGOUT:
 		Leave(session)
 
 	case pb.MsgType_INVITE:
-		cmdChan <- CMD_INVITE
-		sessionChan <- session
-		inviteChan <- msg.GetInvite()
+		myInviteChan <- &MyInvite{WithSession{session},msg.GetInvite()}
 
 	case pb.MsgType_INVITE_ANSWER:
-		cmdChan <- CMD_INVITE_ANSWER
-		sessionChan <- session
-		inviteAnswerChan <- msg.GetInviteAnswer()
+		myInviteAnswerChan <- &MyInviteAnswer{WithSession{session},msg.GetInviteAnswer()}
 
 	case pb.MsgType_HAND:
-		cmdChan <- CMD_HAND
-		sessionChan <- session
-		handChan <- msg.GetHand()
+		myHandChan <- &MyHand{WithSession{session},msg.GetHand()}
 
 	case pb.MsgType_GAME_OVER:
-		cmdChan <- CMD_GAME_OVER
-		sessionChan <- session
-		gameOverChan <- msg.GetGameOver()
+		myGameOverChan <- &MyGameOver{WithSession{session},msg.GetGameOver()}
 
 	case pb.MsgType_DEAD_STONES:
-		cmdChan <- CMD_DEAD_STONES
-		deadStonesChan <- msg.GetDeadStones()
+		myDeadStonesChan <- &MyDeadStones{msg.GetDeadStones()}
 
 	case pb.MsgType_COUNT_RESULT_ANSWER:
-		cmdChan <- CMD_COUNT_RESULT_ANSWER
-		countResultAnswerChan <- msg.GetCountResultAnswer()
+		myCountResultAnswerChan <- &MyCountResultAnswer{msg.GetCountResultAnswer()}
 
 	case pb.MsgType_COUNT_REQUEST:
-		cmdChan <- CMD_COUNT_REQUEST
-		sessionChan <- session
-		countRequestChan <- msg.GetCountRequest()
+		myCountRequestChan <- &MyCountRequest{WithSession{session},msg.GetCountRequest()}
 
 	case pb.MsgType_COUNT_REQUEST_ANSWER:
-		cmdChan <- CMD_COUNT_REQUEST_ANSWER
-		sessionChan <- session
-		countRequestAnswerChan <- msg.GetCountRequestAnswer()
+		myCountRequestAnswerChan <- &MyCountRequestAnswer{WithSession{session},msg.GetCountRequestAnswer()}
 
 	} //switch end
 }
@@ -462,6 +478,6 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 // ------------------------------------------------------------
 
 func main() {
-	go StartServ()
+	go Serv()
 	Listen()
 }
