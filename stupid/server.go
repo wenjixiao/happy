@@ -39,6 +39,8 @@ var countResultAnswerChan chan *pb.CountResultAnswer
 var countRequestChan chan *pb.CountRequest
 var countRequestAnswerChan chan *pb.CountRequestAnswer
 
+var gidResultChan chan *GidResult
+
 var idPool *IdPool
 
 // ------------------------------------------------------------
@@ -46,6 +48,11 @@ var idPool *IdPool
 type Session struct {
 	Conn   net.Conn
 	Player *pb.Player
+}
+
+type GidResult struct {
+	Gid int32
+	Result *pb.Result
 }
 
 // ------------------------------------------------------------
@@ -69,6 +76,7 @@ func Init(){
 	countResultAnswerChan = make(chan *pb.CountResultAnswer,ChanBuf)
 	countRequestChan = make(chan *pb.CountRequest,ChanBuf)
 	countRequestAnswerChan = make(chan *pb.CountRequestAnswer,ChanBuf)
+	gidResultChan = make(chan *GidResult,ChanBuf)
 
 	idPool = NewIdPool(IdPoolSize)
 }
@@ -177,186 +185,193 @@ func StartServ() {
 
 	// begin to serv
 	for {
-		switch cmd := <-cmdChan; cmd {
-		case CMD_ADD_SESSION:
-			session := <- sessionChan
-			AddSession(session)
-			msg := &pb.Msg{
-				Type: pb.MsgType_LOGIN_OK,
-				Union: &pb.Msg_LoginOk{
-					&pb.LoginOk{
-						Player: session.Player,
-						Data: &pb.Data{
-							Players: GetPlayers(),
-						},
-					},
-				},
-			}
-			SendMsg(session, msg)
-
-		case CMD_REMOVE_SESSION:
-			session := <- sessionChan
-			RemoveSession(session)
-
-		case CMD_DATA:
-			fromSession := <- sessionChan
-			msg := &pb.Msg{
-				Type: pb.MsgType_DATA,
-				Union: &pb.Msg_Data{
-					&pb.Data{
-						Players: GetPlayers(),
-					},
-				},
-			}
-			SendMsg(fromSession, msg)
-
-		case CMD_INVITE:
-			fromSession := <- sessionChan
-			invite := <- inviteChan
-			if session,ok := GetSession(invite.Pid); ok {
+		select {
+		case cmd := <-cmdChan:
+			switch cmd {
+			case CMD_ADD_SESSION:
+				session := <- sessionChan
+				AddSession(session)
 				msg := &pb.Msg{
-					Type: pb.MsgType_INVITE,
-					Union: &pb.Msg_Invite{
-						&pb.Invite{
-							Pid: fromSession.Player.Pid,
-							Proto: invite.Proto,
+					Type: pb.MsgType_LOGIN_OK,
+					Union: &pb.Msg_LoginOk{
+						&pb.LoginOk{
+							Player: session.Player,
+							Data: &pb.Data{
+								Players: GetPlayers(),
+							},
 						},
 					},
 				}
 				SendMsg(session, msg)
-			}
 
-		case CMD_INVITE_ANSWER:
-			fromSession := <- sessionChan
-			inviteAnswer := <- inviteAnswerChan
-			if inviteAnswer.GetAgree() {
-				// here, we need create the game and tell players to play
-				if session,ok := GetSession(inviteAnswer.Pid); ok {
-					game := CreateGame(fromSession,session,inviteAnswer.Proto)
-					games = append(games,game)
-					msg := &pb.Msg{
-						Type: pb.MsgType_GAME,
-						Union: &pb.Msg_Game{game},
-					}
-					SendMsg(fromSession,msg)
-					SendMsg(session,msg)
+			case CMD_REMOVE_SESSION:
+				session := <- sessionChan
+				RemoveSession(session)
+
+			case CMD_DATA:
+				fromSession := <- sessionChan
+				msg := &pb.Msg{
+					Type: pb.MsgType_DATA,
+					Union: &pb.Msg_Data{
+						&pb.Data{
+							Players: GetPlayers(),
+						},
+					},
 				}
-			}else{
-				// here, we need to notify the player your answer who invited you
-				if session,ok := GetSession(inviteAnswer.Pid); ok {
+				SendMsg(fromSession, msg)
+
+			case CMD_INVITE:
+				fromSession := <- sessionChan
+				invite := <- inviteChan
+				if session,ok := GetSession(invite.Pid); ok {
 					msg := &pb.Msg{
-						Type: pb.MsgType_INVITE_ANSWER,
-						Union: &pb.Msg_InviteAnswer{
-							&pb.InviteAnswer{
-								Agree: inviteAnswer.Agree,
+						Type: pb.MsgType_INVITE,
+						Union: &pb.Msg_Invite{
+							&pb.Invite{
 								Pid: fromSession.Player.Pid,
-								Proto: ExchangeWhoFirst(inviteAnswer.Proto),
+								Proto: invite.Proto,
 							},
 						},
 					}
 					SendMsg(session, msg)
 				}
-			}
 
-		case CMD_HAND:
-			fromSession := <- sessionChan
-			hand := <- handChan
-
-			if game,ok := GetGame(hand.Gid); ok {
-				msg := &pb.Msg{
-					Type: pb.MsgType_HAND,
-					Union: &pb.Msg_Hand{hand},
+			case CMD_INVITE_ANSWER:
+				fromSession := <- sessionChan
+				inviteAnswer := <- inviteAnswerChan
+				if inviteAnswer.GetAgree() {
+					// here, we need create the game and tell players to play
+					if session,ok := GetSession(inviteAnswer.Pid); ok {
+						game := CreateGame(fromSession,session,inviteAnswer.Proto)
+						games = append(games,game)
+						msg := &pb.Msg{
+							Type: pb.MsgType_GAME,
+							Union: &pb.Msg_Game{game},
+						}
+						SendMsg(fromSession,msg)
+						SendMsg(session,msg)
+					}
+				}else{
+					// here, we need to notify the player your answer who invited you
+					if session,ok := GetSession(inviteAnswer.Pid); ok {
+						msg := &pb.Msg{
+							Type: pb.MsgType_INVITE_ANSWER,
+							Union: &pb.Msg_InviteAnswer{
+								&pb.InviteAnswer{
+									Agree: inviteAnswer.Agree,
+									Pid: fromSession.Player.Pid,
+									Proto: ExchangeWhoFirst(inviteAnswer.Proto),
+								},
+							},
+						}
+						SendMsg(session, msg)
+					}
 				}
-				SendToOtherPlayer(game,fromSession,msg)
-			}
 
-		case CMD_GAME_OVER:
-			fromSession := <- sessionChan
-			gameOver := <- gameOverChan
+			case CMD_HAND:
+				fromSession := <- sessionChan
+				hand := <- handChan
 
-			if game,ok := GetGame(gameOver.Gid); ok {
-				// change game state first
-				game.State = pb.State_ENDED
-				game.Result = gameOver.Result
-
-				// and than resend the gameOver msg to the other player
-				msg := &pb.Msg{
-					Type: pb.MsgType_GAME_OVER,
-					Union: &pb.Msg_GameOver{gameOver},
+				if game,ok := GetGame(hand.Gid); ok {
+					msg := &pb.Msg{
+						Type: pb.MsgType_HAND,
+						Union: &pb.Msg_Hand{hand},
+					}
+					SendToOtherPlayer(game,fromSession,msg)
 				}
-				SendToOtherPlayer(game,fromSession,msg)
-			}
 
-		case CMD_DEAD_STONES:
-			deadStones := <- deadStonesChan
-			recordDeadStones = append(recordDeadStones,deadStones)
-			if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
-				msg := &pb.Msg{
-					Type: pb.MsgType_GAME_OVER,
-					Union: &pb.Msg_GameOver{
-						&pb.GameOver{
-							Gid: deadStones.Gid,
-							Result: CountForResult(deadStones.Gid,stones),
-						},
-					},
-				}
-				SendToAllPlayer(deadStones.Gid,msg)
-			}
+			case CMD_GAME_OVER:
+				fromSession := <- sessionChan
+				gameOver := <- gameOverChan
 
-		case CMD_COUNT_RESULT_ANSWER:
-			// gameover by count
-			countResultAnswer := <- countResultAnswerChan
-			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
-			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
-				if agree == 2 {
-					// Gameover
+				if game,ok := GetGame(gameOver.Gid); ok {
+					// change game state first
+					game.State = pb.State_ENDED
+					game.Result = gameOver.Result
+
+					// and than resend the gameOver msg to the other player
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME_OVER,
-						Union: &pb.Msg_GameOver{
-							&pb.GameOver{
-								Gid: countResultAnswer.Gid,
-								Result: countResultAnswer.Result,
+						Union: &pb.Msg_GameOver{gameOver},
+					}
+					SendToOtherPlayer(game,fromSession,msg)
+				}
+
+			case CMD_DEAD_STONES:
+				deadStones := <- deadStonesChan
+				recordDeadStones = append(recordDeadStones,deadStones)
+				if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
+					go ProcessCount(deadStones.Gid,stones)
+				}
+
+			case CMD_COUNT_RESULT_ANSWER:
+				// gameover by count
+				countResultAnswer := <- countResultAnswerChan
+				recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
+				if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
+					if agree == 2 {
+						// Gameover
+						msg := &pb.Msg{
+							Type: pb.MsgType_GAME_OVER,
+							Union: &pb.Msg_GameOver{
+								&pb.GameOver{
+									Gid: countResultAnswer.Gid,
+									Result: countResultAnswer.Result,
+								},
 							},
-						},
+						}
+						SendToAllPlayer(countResultAnswer.Gid,msg)
+					}else{
+						// Restart the game! Someone disagree,but i don't care who refuse. 
+						msg := &pb.Msg{
+							Type: pb.MsgType_DO_CONTINUE,
+							Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}},
+						}
+						SendToAllPlayer(countResultAnswer.Gid,msg)
 					}
-					SendToAllPlayer(countResultAnswer.Gid,msg)
-				}else{
-					// Restart the game! Someone disagree,but i don't care who refuse. 
+				}
+
+			case CMD_COUNT_REQUEST:
+				fromSession := <- sessionChan
+				countRequest := <- countRequestChan
+
+				if game,ok := GetGame(countRequest.Gid); ok {
 					msg := &pb.Msg{
-						Type: pb.MsgType_DO_CONTINUE,
-						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}},
+						Type: pb.MsgType_COUNT_REQUEST,
+						Union: &pb.Msg_CountRequest{countRequest},
 					}
-					SendToAllPlayer(countResultAnswer.Gid,msg)
+					SendToOtherPlayer(game,fromSession,msg)
 				}
-			}
 
-		case CMD_COUNT_REQUEST:
-			fromSession := <- sessionChan
-			countRequest := <- countRequestChan
+			case CMD_COUNT_REQUEST_ANSWER:
+				fromSession := <- sessionChan
+				countRequestAnswer := <- countRequestAnswerChan
+				if game,ok := GetGame(countRequestAnswer.Gid); ok {
 
-			if game,ok := GetGame(countRequest.Gid); ok {
-				msg := &pb.Msg{
-					Type: pb.MsgType_COUNT_REQUEST,
-					Union: &pb.Msg_CountRequest{countRequest},
+					game.State = pb.State_PAUSED
+
+					msg := &pb.Msg{
+						Type: pb.MsgType_COUNT_REQUEST_ANSWER,
+						Union: &pb.Msg_CountRequestAnswer{countRequestAnswer},
+					}
+					SendToOtherPlayer(game,fromSession,msg)
 				}
-				SendToOtherPlayer(game,fromSession,msg)
-			}
 
-		case CMD_COUNT_REQUEST_ANSWER:
-			fromSession := <- sessionChan
-			countRequestAnswer := <- countRequestAnswerChan
-			if game,ok := GetGame(countRequestAnswer.Gid); ok {
-				
-				game.State = pb.State_PAUSED
+			} // switch ended
 
-				msg := &pb.Msg{
-					Type: pb.MsgType_COUNT_REQUEST_ANSWER,
-					Union: &pb.Msg_CountRequestAnswer{countRequestAnswer},
-				}
-				SendToOtherPlayer(game,fromSession,msg)
+		case gidResult := <-gidResultChan:
+			msg := &pb.Msg{
+				Type: pb.MsgType_GAME_OVER,
+				Union: &pb.Msg_GameOver{
+					&pb.GameOver{
+						Gid: gidResult.Gid,
+						Result: gidResult.Result,
+					},
+				},
 			}
-		}// switch end
-	}
+			SendToAllPlayer(gidResult.Gid,msg)
+		} // select ended
+	} // for ended
 }
 
 func AgreeCountResultAnswers(theCountResultAnswers []*pb.CountResultAnswer,gid int32) (agree int,all int){
@@ -369,6 +384,12 @@ func AgreeCountResultAnswers(theCountResultAnswers []*pb.CountResultAnswer,gid i
 		}
 	}
 	return
+}
+
+func ProcessCount(gid int32,deads []*pb.Stone) {
+	var result *pb.Result
+	// @todo Here,we compute the game result
+	gidResultChan <- &GidResult{gid,result}
 }
 
 func CountForResult(gid int32,deads []*pb.Stone) (result *pb.Result) {
@@ -465,7 +486,7 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		sessionChan <- session
 		countRequestAnswerChan <- msg.GetCountRequestAnswer()
 
-	}
+	} //switch end
 }
 
 // ------------------------------------------------------------

@@ -130,8 +130,8 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.GAME_OVER:
 			if msg.gameOver.result.endType == pb.EndType.COUNT:
 				# we get the count result,we also need to ask,if he agree the count result
-				dialog = wx.MessageDialog(self, 'Are you agree the count result of gameover?', 'Question',
-		         wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+				words = 'Are you agree the count result of gameover?'
+				dialog = wx.MessageDialog(self, words, 'Question', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 				result = dialog.ShowModal()
 
 				msg1 = pb.Msg()
@@ -149,10 +149,8 @@ class BasicClient(wx.Frame):
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
 			# the next thing is select dead stones,because the other player has agree
-			def myfun(gf):
-				if msg.countRequestAnswer.agree:
-					gf.selectDeadStones()
-			self.withGameFrame(msg.countRequestAnswer.gid,myfun)
+			cra = msg.countRequestAnswer
+			self.withGameFrame(cra.gid, lambda gf: if cra.agree: gf.selectDeadStones())
 		
 		elif msg.type == pb.MsgType.DO_CONTINUE:
 			self.withGameFrame(msg.doContinue.gid,lambda gf: gf.doContinue())
