@@ -150,7 +150,10 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
 			# the next thing is select dead stones,because the other player has agree
 			cra = msg.countRequestAnswer
-			self.withGameFrame(cra.gid, lambda gf: if cra.agree: gf.selectDeadStones())
+			def myfun():
+				if car.agree:
+					gf.selectDeadStones()
+			self.withGameFrame(cra.gid,myfun)
 		
 		elif msg.type == pb.MsgType.DO_CONTINUE:
 			self.withGameFrame(msg.doContinue.gid,lambda gf: gf.doContinue())

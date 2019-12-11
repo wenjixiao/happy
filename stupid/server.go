@@ -15,14 +15,10 @@ const (
 	OP_DATA_SESSION = 3
 )
 
-// ------------------------------------------------------------
-
 type Session struct {
 	Conn   net.Conn
 	Player *pb.Player
 }
-
-// ------------------------------------------------------------
 
 type MyGidResult struct {
 	Gid int32
@@ -76,8 +72,6 @@ type MyCountRequestAnswer struct {
 	CountRequestAnswer *pb.CountRequestAnswer
 }
 
-// ------------------------------------------------------------
-
 var sessions []*Session
 var games []*pb.Game
 
@@ -93,8 +87,6 @@ var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
 
 var idPool *IdPool
-
-// ------------------------------------------------------------
 
 func Init(){
 	const IdPoolSize = 100
@@ -119,8 +111,6 @@ func Init(){
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
 }
-
-// ------------------------------------------------------------
 
 func AddSession(session *Session) {
 	sessions = append(sessions, session)
@@ -167,8 +157,6 @@ func Leave(session *Session) {
 	if session.Player != nil {
 		session.Player = nil
 		myOpSessionChan <- &MyOpSession{WithSession{session},OP_REMOVE_SESSION}
-		// cmdChan <- CMD_REMOVE_SESSION
-		// sessionChan <- session
 	}
 }
 
@@ -376,7 +364,7 @@ func Serv() {
 						Gid: myGidResult.Gid,
 						Result: myGidResult.Result}}}
 			SendToAllPlayer(myGidResult.Gid,msg)
-			
+
 		} // select ended
 	} // for ended
 }
