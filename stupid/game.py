@@ -251,7 +251,7 @@ class GameFrame(wx.Frame):
 			self.selectDeadStones()
 
 	def selectDeadStones(self):
-		logging.info("---selectDeadStones invoked---")
+		logging.info("selectDeadStones invoked")
 
 	def gameover(self,result):
 		self.stopMyClock()

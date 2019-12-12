@@ -172,10 +172,10 @@ class BasicClient(wx.Frame):
 			wx.MessageBox("connect is broken!")
 
 	def connection_made_callback(self):
-		logging.debug("----connection made----")
+		logging.debug("connection made")
 		
 	def connection_lost_callback(self,exc):
-		logging.debug("connection lost @ %s" % exc)
+		logging.debug("connection lost: %s\n" % exc)
 
 
 if __name__ == '__main__':

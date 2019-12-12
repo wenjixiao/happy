@@ -16,18 +16,16 @@ func ListenAndServ() {
 	listener, err := net.Listen("tcp", ":5678")
 	defer listener.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("listener: %s",err)
 	}
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("socket accept: %s",err)
 		}
-		session := &Session{
-			Conn: conn,
-		}
-		go HandleConn(session)
+
+		go HandleConn(&Session{Conn: conn})
 	}
 }
 
@@ -37,7 +35,7 @@ func HandleConn(session *Session) {
 	const MSG_BUF_LEN = 1024 * 10 //10KB
 	const READ_BUF_LEN = 1024     //1KB
 
-	log.Printf("Client: %s\n", session.Conn.RemoteAddr())
+	log.Printf("client: %s\n", session.Conn.RemoteAddr())
 
 	msgBuf := bytes.NewBuffer(make([]byte, 0, MSG_BUF_LEN))
 	readBuf := make([]byte, READ_BUF_LEN)
@@ -49,19 +47,18 @@ func HandleConn(session *Session) {
 		n, err := session.Conn.Read(readBuf)
 		if err != nil {
 			if err == io.EOF {
-				log.Println("---connection lost normal---")
+				log.Println("conn closed")
 			} else {
-				log.Printf("Read error: %s\n", err)
+				log.Printf("conn read: %s\n", err)
 			}
-
 			Leave(session)
-
 			break
 		}
+
 		_, err = msgBuf.Write(readBuf[:n])
 
 		if err != nil {
-			log.Fatalf("Buffer write error: %s\n", err)
+			log.Fatalf("buf write: %s\n", err)
 		}
 
 		for {
@@ -69,12 +66,12 @@ func HandleConn(session *Session) {
 			if bodyLen == 0 && msgBuf.Len() >= HeaderSize {
 				err := binary.Read(msgBuf, binary.LittleEndian, &head)
 				if err != nil {
-					log.Printf("Msg head Decode error: %s\n", err)
+					log.Printf("msg head decode: %s\n", err)
 				}
 				bodyLen = int(head)
 
 				if bodyLen > MSG_BUF_LEN {
-					log.Fatalf("Msg body too long: %d\n", bodyLen)
+					log.Fatalf("msg body overflow: %d\n", bodyLen)
 				}
 			}
 			//has head,now read body
@@ -82,7 +79,7 @@ func HandleConn(session *Session) {
 				msg := &pb.Msg{}
 				err := proto.Unmarshal(msgBuf.Next(bodyLen), msg)
 				if err != nil {
-					log.Fatalf("Protobuf Unmarshal error: %s\n", err)
+					log.Fatalf("proto unmarshal: %s\n", err)
 				}
 				ProcessMsg(session, msg)
 				bodyLen = 0
@@ -104,10 +101,10 @@ func AddHeader(msgBytes []byte) []byte {
 func SendMsg(session *Session, msg *pb.Msg) {
 	data, err := proto.Marshal(msg)
 	if err != nil {
-		log.Fatalf("Protobuf marshal error: %s\n", err)
+		log.Fatalf("proto marshal: %s\n", err)
 	}
 	_, err = session.Conn.Write(AddHeader(data))
 	if err != nil {
-		log.Fatalf("Write error: %s\n", err)
+		log.Fatalf("conn write: %s\n", err)
 	}
 }
