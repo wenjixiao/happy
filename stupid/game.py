@@ -223,6 +223,8 @@ class GameFrame(wx.Frame):
 			self.send_msg(msg)
 
 		elif cmd == "count":
+			self.doPaused()
+
 			msg = pb.Msg()
 			msg.type = pb.MsgType.COUNT_REQUEST
 			msg.countRequest.gid = self.game.gid
@@ -245,11 +247,11 @@ class GameFrame(wx.Frame):
 		self.send_msg(msg1)
 
 		if isAgree:
+			self.doPaused()
 			self.selectDeadStones()
 
 	def selectDeadStones(self):
 		logging.info("---selectDeadStones invoked---")
-		self.doPaused()
 
 	def gameover(self,result):
 		self.stopMyClock()

@@ -114,7 +114,7 @@ func Init(){
 	mySessionMsgChan = make(chan *MySessionMsg,ChanBuf*2)
 
 	rand.Seed(time.Now().UnixNano())
-	
+
 	idPool = NewIdPool(IdPoolSize)
 }
 
@@ -226,7 +226,7 @@ func Dispatch() {
 					Union: &pb.Msg_LoginOk{
 						&pb.LoginOk{
 							Player: myOpSession.Session.Player,
-							Data: &pb.Data{Players: GetPlayers()}}}}
+							Data: &pb.Data{Players: GetPlayers(),Games: games}}}}
 				SendMessage(myOpSession.Session, msg)
 
 			case OP_REMOVE_SESSION:
@@ -235,8 +235,7 @@ func Dispatch() {
 			case OP_DATA_SESSION:
 				msg := &pb.Msg{
 					Type: pb.MsgType_DATA,
-					Union: &pb.Msg_Data{&pb.Data{Players: GetPlayers()}},
-				}
+					Union: &pb.Msg_Data{&pb.Data{Players: GetPlayers(),Games: games}}}
 				SendMessage(myOpSession.Session, msg)
 			}
 
@@ -340,6 +339,9 @@ func Dispatch() {
 			countRequest := myCountRequest.CountRequest
 
 			if game,ok := GetGame(countRequest.Gid); ok {
+
+				game.State = pb.State_PAUSED
+
 				msg := &pb.Msg{
 					Type: pb.MsgType_COUNT_REQUEST,
 					Union: &pb.Msg_CountRequest{countRequest}}
@@ -349,10 +351,11 @@ func Dispatch() {
 		case myCountRequestAnswer := <-myCountRequestAnswerChan:
 			fromSession := myCountRequestAnswer.Session
 			countRequestAnswer := myCountRequestAnswer.CountRequestAnswer
+
 			if game,ok := GetGame(countRequestAnswer.Gid); ok {
-
-				game.State = pb.State_PAUSED
-
+				if !countRequestAnswer.GetAgree() {
+					game.State = pb.State_RUNNING
+				}
 				msg := &pb.Msg{
 					Type: pb.MsgType_COUNT_REQUEST_ANSWER,
 					Union: &pb.Msg_CountRequestAnswer{countRequestAnswer}}
