@@ -20,13 +20,13 @@ type Session struct {
 	Player *pb.Player
 }
 
+type WithSession struct {
+	Session *Session
+}
+
 type MyGidResult struct {
 	Gid int32
 	Result *pb.Result
-}
-
-type WithSession struct {
-	Session *Session
 }
 
 type MyOpSession struct {
@@ -47,6 +47,11 @@ type MyInviteAnswer struct {
 type MyHand struct {
 	WithSession
 	Hand *pb.Hand
+}
+
+type MyClockNotify struct {
+	WithSession
+	ClockNotify *pb.ClockNotify
 }
 
 type MyGameOver struct {
@@ -91,6 +96,7 @@ var myCountResultAnswerChan chan *MyCountResultAnswer
 var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
 var mySessionMsgChan chan *MySessionMsg
+var myClockNotifyChan chan *MyClockNotify
 
 var idPool *IdPool
 
@@ -112,6 +118,7 @@ func Init(){
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
 	mySessionMsgChan = make(chan *MySessionMsg,ChanBuf*2)
+	myClockNotifyChan = make(chan *MyClockNotify,ChanBuf)
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -288,6 +295,22 @@ func Dispatch() {
 				SendToOtherPlayer(game,myHand.Session,msg)
 			}
 
+		case myClockNotify := <-myClockNotifyChan:
+			if game,ok := GetGame(myClockNotify.ClockNotify.Gid); ok {
+				// change the game's clock at server too
+				for index,player := range game.Players {
+					if myClockNotify.ClockNotify.Pid == player.Pid {
+						game.Clocks[index] = myClockNotify.ClockNotify.Clock
+						break
+					}
+				}
+				// send clock msg to other player
+				msg := &pb.Msg{
+					Type: pb.MsgType_CLOCK_NOTIFY,
+					Union: &pb.Msg_ClockNotify{myClockNotify.ClockNotify}}
+				SendToOtherPlayer(game,myClockNotify.Session,msg)
+			}
+
 		case myGameOver := <-myGameOverChan:
 			fromSession := myGameOver.Session
 			gameOver := myGameOver.GameOver
@@ -460,6 +483,9 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 
 	case pb.MsgType_HAND:
 		myHandChan <- &MyHand{WithSession{session},msg.GetHand()}
+
+	case pb.MsgType_CLOCK_NOTIFY:
+		myClockNotifyChan <- &MyClockNotify{WithSession{session},msg.GetClockNotify()}
 
 	case pb.MsgType_GAME_OVER:
 		myGameOverChan <- &MyGameOver{WithSession{session},msg.GetGameOver()}

@@ -160,6 +160,10 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.DO_CONTINUE:
 			self.withGameFrame(msg.doContinue.gid,lambda gf: gf.doContinue())
 
+		elif msg.type == pb.MsgType.CLOCK_NOTIFY:
+			cn = msg.clockNotify
+			self.withGameFrame(cn.gid,lambda gf: gf.clockNotify(cn.pid,cn.clock))
+
 	def withGameFrame(self,gid,myfun):
 		for gameFrame in self.gameFrames:
 			if gameFrame.game.gid == gid:

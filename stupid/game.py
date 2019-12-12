@@ -40,6 +40,9 @@ class PlayersPane(wx.Panel):
 	def getLevelStr(self,player):
 		return str(player.level)
 
+	def setClock(self,pid,clock):
+		self.guide[pid].setClock(clock)
+
 class ClockPane(wx.Panel):
 	def __init__(self,parent,gameFrame,clock):
 		super(ClockPane,self).__init__(parent)
@@ -92,6 +95,19 @@ class ClockPane(wx.Panel):
 			self.gameFrame.iamTimeout()
 
 		self.updateView()
+		self.sendClockNotify()
+
+	def setClock(self,clock):
+		self.clock = clock
+		self.updateView()
+
+	def sendClockNotify(self):
+		msg = pb.Msg()
+		msg.type = pb.MsgType.CLOCK_NOTIFY
+		msg.clockNotify.gid = self.gameFrame.game.gid
+		msg.clockNotify.pid = self.gameFrame.myPlayer().pid
+		msg.clockNotify.clock.CopyFrom(self.clock)
+		self.gameFrame.send_msg(msg)
 
 	def start(self):
 		self.timer.Start(1000)
@@ -160,6 +176,9 @@ class GameFrame(wx.Frame):
 
 	def myClock(self):
 		return self.playersPane.guide[self.myPlayer().pid]
+
+	def clockNotify(self,pid,clock):
+		self.playersPane.setClock(pid,clock)
 
 	def startMyClock(self):
 		self.myClock().start()

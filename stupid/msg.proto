@@ -60,6 +60,12 @@ message DoContinue {
 	int32 gid = 1;
 }
 
+message ClockNotify {
+	int32 gid = 1;
+	string pid = 2;
+	Clock clock = 3;
+}
+
 //------------------------------------------------
 // when game state is *Counting* 
 
@@ -128,6 +134,7 @@ enum MsgType {
 	GAME_OVER = 12;
 	COUNT_REQUEST_ANSWER = 13;
 	DO_CONTINUE = 14;
+	CLOCK_NOTIFY = 15;
 }
 
 //------------------------------------------------
@@ -150,6 +157,7 @@ message Msg{
 		GameOver gameOver = 14;
 		CountRequestAnswer countRequestAnswer = 15;
 		DoContinue doContinue = 16;
+		ClockNotify clockNotify = 17;
 	}
 }
 
