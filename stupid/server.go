@@ -98,13 +98,8 @@ func Init(){
 	const IdPoolSize = 100
 	const ChanBuf = 5
 
-	rand.Seed(time.Now().UnixNano())
-
 	sessions  = []*Session{}
 	games = []*pb.Game{}
-
-	idPool = NewIdPool(IdPoolSize)
-// ------------------------------------------------------------
 
 	myGidResultChan = make(chan *MyGidResult,ChanBuf)
 	myOpSessionChan = make(chan *MyOpSession,ChanBuf)
@@ -117,6 +112,10 @@ func Init(){
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
 	mySessionMsgChan = make(chan *MySessionMsg,ChanBuf*2)
+
+	rand.Seed(time.Now().UnixNano())
+	
+	idPool = NewIdPool(IdPoolSize)
 }
 
 func AddSession(session *Session) {
@@ -211,9 +210,6 @@ func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
 }
 
 func Dispatch() {
-	// must init all global things frist
-	// Init()
-
 	// all deadStones messages saved here
 	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
 	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
@@ -486,5 +482,5 @@ func main() {
 	Init()
 	go MySendMsg()
 	go Dispatch()
-	Listen()
+	ListenAndServ()
 }

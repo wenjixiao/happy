@@ -12,7 +12,7 @@ import (
 
 const HeaderSize = 4
 
-func Listen() {
+func ListenAndServ() {
 	listener, err := net.Listen("tcp", ":5678")
 	defer listener.Close()
 	if err != nil {
