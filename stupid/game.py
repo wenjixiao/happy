@@ -95,11 +95,24 @@ class ClockPane(wx.Panel):
 			self.gameFrame.iamTimeout()
 
 		self.updateView()
-		self.sendClockNotify()
+		self.needSendClock()
 
 	def setClock(self,clock):
 		self.clock = clock
 		self.updateView()
+
+	def needSendClock(self):
+		# 如果有保留时间，一分钟发送一个通知
+		# 如果没有保留时间，每十秒发送一个通知，最后十秒，一秒发送一个
+		if self.clock.baoLiu > 0 && self.clock.baoLiu % 60 == 0 {
+			self.sendClockNotify()
+		}else{
+			if self.clock.duMiao >= 10 && self.clock.duMiao % 10 == 0 {
+				self.sendClockNotify()
+			}else{
+				self.sendClockNotify()
+			}
+		}
 
 	def sendClockNotify(self):
 		msg = pb.Msg()

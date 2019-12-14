@@ -51,7 +51,7 @@ func HandleConn(session *Session) {
 			} else {
 				log.Printf("conn read: %s\n", err)
 			}
-			Leave(session)
+			LineBroken(session)
 			break
 		}
 

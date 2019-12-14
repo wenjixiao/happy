@@ -13,6 +13,8 @@ const (
 	OP_ADD_SESSION = 1
 	OP_REMOVE_SESSION = 2
 	OP_DATA_SESSION = 3
+
+	COUNTING_DOWN = 60*2
 )
 
 type Session struct {
@@ -159,6 +161,26 @@ func GetGame(gid int32) (*pb.Game,bool) {
 	return nil,false
 }
 
+func GetGameByPid(pid string) (game *pb.Game,inGame bool) {
+	for _,g := range games {
+		if IsPlayerInGame(pid,g) {
+			game,inGame = g,true
+			break
+		}
+	}
+	return
+}
+
+func IsPlayerInGame(pid string,game *pb.Game) (inGame bool) {
+	for _,player := range game.Players {
+		if player.Pid == pid {
+			inGame = true
+			break
+		}
+	}
+	return
+}
+
 func GetPlayers() (players []*pb.Player) {
 	for _, session := range sessions {
 		players = append(players, session.Player)
@@ -166,11 +188,97 @@ func GetPlayers() (players []*pb.Player) {
 	return
 }
 
-func Leave(session *Session) {
-	if session.Player != nil {
-		session.Player = nil
-		myOpSessionChan <- &MyOpSession{WithSession{session},OP_REMOVE_SESSION}
+func LineBroken(session *Session) {
+	player := session.Player
+
+	if player != nil {
+		// means the broken session is in sessions
+		mypid := player.Pid
+
+		Leave(session)
+
+		if game,ok := GetGameByPid(mypid); ok {
+			game.State = pb.State_BROKEN
+
+			msg := &pb.Msg{
+				Type: pb.MsgType_LINE_BROKEN,
+				Union: &pb.Msg_LineBroken{&pb.LineBroken{Gid: game.Gid}}}
+
+			SendToOtherPlayer(game,session,msg)
+
+			go CountDown(game)
+		}
 	}
+}
+
+func CountDown(game *pb.Game){
+	var count int32 = COUNTING_DOWN
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+
+	for range timer.C {
+		if count > 10 {
+			if count % 10 == 0 {
+				sendCountDown(game,count)
+			}
+			count -= 1
+		}else{
+			if count < 0 {
+				GameOverByLineBroken(game)
+				break
+			}else{
+				sendCountDown(game,count)
+				count -= 1
+			}
+		}
+	}
+}
+
+func GameOverByLineBroken(game *pb.Game){
+	result := &pb.Result{Winner: NotBrokenColor(game), EndType: pb.EndType_LINEBROKEN}
+
+	game.State = pb.State_ENDED
+	game.Result = result
+
+	msg := &pb.Msg{
+		Type: pb.MsgType_GAME_OVER,
+		Union: &pb.Msg_GameOver{&pb.GameOver{Gid: game.Gid, Result: result}}}
+
+	for _,player := range game.Players {
+		if session,ok := GetSession(player.Pid); ok {
+			SendMessage(session,msg)
+		}
+	}
+}
+
+func NotBrokenColor(game *pb.Game) (color pb.Color) {
+	for index,player := range game.Players {
+		if _,ok := GetSession(player.Pid); ok {
+			if int32(index) == game.BlackIndex {
+				color = pb.Color_BLACK
+			}else{
+				color = pb.Color_WHITE
+			}
+		}
+	}
+	return
+}
+
+func sendCountDown(game *pb.Game,count int32){
+	msg := &pb.Msg{
+		Type: pb.MsgType_COUNT_DOWN,
+		Union: &pb.Msg_CountDown{&pb.CountDown{Count: count}}}
+
+	for _,player := range game.Players {
+		if session,ok := GetSession(player.Pid); ok {
+			SendMessage(session,msg)
+		}
+	}
+}
+
+func Leave(session *Session) {
+	// session.Player = nil
+	myOpSessionChan <- &MyOpSession{WithSession{session},OP_REMOVE_SESSION}
 }
 
 func GetBlackIndex(proto *pb.Proto) (r int32) {
@@ -267,9 +375,7 @@ func Dispatch() {
 				if session,ok := GetSession(inviteAnswer.Pid); ok {
 					game := CreateGame(fromSession,session,inviteAnswer.Proto)
 					games = append(games,game)
-					msg := &pb.Msg{
-						Type: pb.MsgType_GAME,
-						Union: &pb.Msg_Game{game}}
+					msg := &pb.Msg{Type: pb.MsgType_GAME, Union: &pb.Msg_Game{game}}
 					SendMessage(fromSession,msg)
 					SendMessage(session,msg)
 				}
@@ -289,9 +395,7 @@ func Dispatch() {
 
 		case myHand := <-myHandChan:
 			if game,ok := GetGame(myHand.Hand.Gid); ok {
-				msg := &pb.Msg{
-					Type: pb.MsgType_HAND,
-					Union: &pb.Msg_Hand{myHand.Hand}}
+				msg := &pb.Msg{Type: pb.MsgType_HAND, Union: &pb.Msg_Hand{myHand.Hand}}
 				SendToOtherPlayer(game,myHand.Session,msg)
 			}
 
@@ -321,9 +425,7 @@ func Dispatch() {
 				game.Result = gameOver.Result
 
 				// and than resend the gameOver msg to the other player
-				msg := &pb.Msg{
-					Type: pb.MsgType_GAME_OVER,
-					Union: &pb.Msg_GameOver{gameOver}}
+				msg := &pb.Msg{Type: pb.MsgType_GAME_OVER, Union: &pb.Msg_GameOver{gameOver}}
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 

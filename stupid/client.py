@@ -164,6 +164,9 @@ class BasicClient(wx.Frame):
 			cn = msg.clockNotify
 			self.withGameFrame(cn.gid,lambda gf: gf.clockNotify(cn.pid,cn.clock))
 
+		elif msg.type == pb.MsgType.LINE_BROKEN:
+			pass
+
 	def withGameFrame(self,gid,myfun):
 		for gameFrame in self.gameFrames:
 			if gameFrame.game.gid == gid:

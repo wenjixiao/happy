@@ -16,7 +16,8 @@ enum WhoFirst {
 enum State {
 	PREPARE = 0;
 	RUNNING = 1;
-	PAUSED = 2;
+	PAUSED = 5;
+	BROKEN = 2;
 	COUNTING = 3;
 	ENDED = 4;
 }
@@ -25,6 +26,7 @@ enum EndType {
 	COUNT = 0;
 	ADMIT = 1;
 	TIMEOUT = 2;
+	LINEBROKEN = 3;
 }
 
 //------------------------------------------------
@@ -64,6 +66,14 @@ message ClockNotify {
 	int32 gid = 1;
 	string pid = 2;
 	Clock clock = 3;
+}
+
+message LineBroken {
+	int32 gid = 1;
+}
+
+message CountDown {
+	int32 count = 1;
 }
 
 //------------------------------------------------
@@ -135,6 +145,8 @@ enum MsgType {
 	COUNT_REQUEST_ANSWER = 13;
 	DO_CONTINUE = 14;
 	CLOCK_NOTIFY = 15;
+	LINE_BROKEN = 16;
+	COUNT_DOWN = 17;
 }
 
 //------------------------------------------------
@@ -158,6 +170,8 @@ message Msg{
 		CountRequestAnswer countRequestAnswer = 15;
 		DoContinue doContinue = 16;
 		ClockNotify clockNotify = 17;
+		LineBroken lineBroken = 18;
+		CountDown countDown = 19;
 	}
 }
 
