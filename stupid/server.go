@@ -161,11 +161,10 @@ func GetGame(gid int32) (*pb.Game,bool) {
 	return nil,false
 }
 
-func GetGameByPid(pid string) (game *pb.Game,inGame bool) {
+func GetGamesByPid(pid string) (mygames []*pb.Game) {
 	for _,g := range games {
 		if IsPlayerInGame(pid,g) {
-			game,inGame = g,true
-			break
+			mygames = append(mygames,g)
 		}
 	}
 	return
@@ -192,12 +191,10 @@ func LineBroken(session *Session) {
 	player := session.Player
 
 	if player != nil {
-		// means the broken session is in sessions
-		mypid := player.Pid
-
+		// remove from sessions
 		Leave(session)
 
-		if game,ok := GetGameByPid(mypid); ok {
+		for _,game := range GetGamesByPid(player.Pid) {
 			game.State = pb.State_BROKEN
 
 			msg := &pb.Msg{
@@ -224,7 +221,7 @@ func CountDown(game *pb.Game){
 			count -= 1
 		}else{
 			if count < 0 {
-				GameOverByLineBroken(game)
+				LineBrokenEnded(game)
 				break
 			}else{
 				sendCountDown(game,count)
@@ -234,8 +231,10 @@ func CountDown(game *pb.Game){
 	}
 }
 
-func GameOverByLineBroken(game *pb.Game){
-	result := &pb.Result{Winner: NotBrokenColor(game), EndType: pb.EndType_LINEBROKEN}
+func LineBrokenEnded(game *pb.Game){
+	result := &pb.Result{
+		Winner: NotBrokenColor(game), 
+		EndType: pb.EndType_LINEBROKEN}
 
 	game.State = pb.State_ENDED
 	game.Result = result
@@ -277,7 +276,6 @@ func sendCountDown(game *pb.Game,count int32){
 }
 
 func Leave(session *Session) {
-	// session.Player = nil
 	myOpSessionChan <- &MyOpSession{WithSession{session},OP_REMOVE_SESSION}
 }
 
@@ -324,6 +322,16 @@ func ExchangeWhoFirst(proto *pb.Proto) *pb.Proto {
 	return proto
 }
 
+func CanGameStart(game *pb.Game) bool {
+	c := 0
+	for _,player := range game.Players {
+		if _,ok := GetSession(player.Pid); ok {
+			c++
+		}
+	}
+	return c == 2
+}
+
 func Dispatch() {
 	// all deadStones messages saved here
 	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
@@ -335,7 +343,28 @@ func Dispatch() {
 		case myOpSession := <-myOpSessionChan:
 			switch myOpSession.Op {
 			case OP_ADD_SESSION:
+				mygames := GetGamesByPid(myOpSession.Session.Player.Pid)
+				for _,game := range mygames {
+					if game.State == pb.State_BROKEN {
+						stateChanged := false
+						if CanGameStart(game) {
+							game.State = pb.State_RUNNING
+							stateChanged = true
+						}
+						msg := &pb.Msg{Type: pb.MsgType_GAME, Union: &pb.Msg_Game{game}}
+						SendMessage(myOpSession.Session,msg)
+						// state change notify
+						if stateChanged {
+							msg1 := &pb.Msg{
+								Type: pb.MsgType_STATE_CHANGED, 
+								Union: &pb.Msg_StateChanged{&pb.StateChanged{Gid:game.Gid,State: pb.State_RUNNING}}}
+							SendToOtherPlayer(game,myOpSession.Session,msg1)
+						}
+					}
+				}
+
 				AddSession(myOpSession.Session)
+
 				msg := &pb.Msg{
 					Type: pb.MsgType_LOGIN_OK,
 					Union: &pb.Msg_LoginOk{
@@ -559,7 +588,7 @@ func SendMessage(session *Session,msg *pb.Msg) {
 }
 
 func ProcessMsg(session *Session, msg *pb.Msg) {
-	log.Printf("Received msg: \n%s\n", msg)
+	log.Printf("received msg: \n%s\n", msg)
 	switch msg.GetType() {
 	case pb.MsgType_LOGIN:
 		login := msg.GetLogin()

@@ -166,6 +166,9 @@ class BasicClient(wx.Frame):
 
 		elif msg.type == pb.MsgType.LINE_BROKEN:
 			pass
+			
+		elif msg.type == pb.MsgType.STATE_CHANGED:
+			pass
 
 	def withGameFrame(self,gid,myfun):
 		for gameFrame in self.gameFrames:

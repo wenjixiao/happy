@@ -76,6 +76,11 @@ message CountDown {
 	int32 count = 1;
 }
 
+message StateChanged {
+	int32 gid = 1;
+	State state = 2;
+}
+
 //------------------------------------------------
 // when game state is *Counting* 
 
@@ -147,6 +152,7 @@ enum MsgType {
 	CLOCK_NOTIFY = 15;
 	LINE_BROKEN = 16;
 	COUNT_DOWN = 17;
+	STATE_CHANGED = 18;
 }
 
 //------------------------------------------------
@@ -172,6 +178,7 @@ message Msg{
 		ClockNotify clockNotify = 17;
 		LineBroken lineBroken = 18;
 		CountDown countDown = 19;
+		StateChanged stateChanged = 20;
 	}
 }
 
