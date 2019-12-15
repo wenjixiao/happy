@@ -162,9 +162,11 @@ class BoardPane(wx.Panel):
 			return otherColor(lastStone.color)
 
 class GameFrame(wx.Frame):
+	COUNTING = 60*2
 	def __init__(self,parent,game):
 		super(GameFrame, self).__init__(parent, size=(400, 600))
 		self.game = game
+		self.count = self.COUNTING
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 
 		panel = wx.Panel(self)
@@ -183,6 +185,8 @@ class GameFrame(wx.Frame):
 
 		self.Show()
 		self.checkStart()
+		self.countTimer = wx.Timer(self)
+		self.Bind(wx.EVT_TIMER, self.onCount, self.countTimer)
 
 	def canPutStone(self):
 		return self.game.state == pb.State.RUNNING
@@ -298,14 +302,43 @@ class GameFrame(wx.Frame):
 		for clockPane in self.playersPane.guide.values():
 			clockPane.paused()
 
-	def stateChanged(self,state):
-		self.game.state = state
-		self.checkStart()
-
 	def lineBroken(self):
 		if self.isMyTurn():
 			self.game.state = pb.State.BROKEN
 			self.stopMyClock()
+		self.startCountDown()
+
+	def onCount(self,event):
+		self.count -= 1
+
+		if self.count > 10 and self.count % 10 == 0 :
+			logging.info("countdown 10:{}".format(self.count))
+		elif self.count > 0:
+			logging.info("countdown 1:{}".format(self.count))
+		else:
+			self.countOverflow()
+
+	def countOverflow(self):
+		myresult = pb.Result()
+		myresult.winner = self.myColor()
+		myresult.endType = pb.EndType.LINEBROKEN
+
+		self.gameover(myresult)
+
+		msg = pb.Msg()
+		msg.type = pb.MsgType.GAME_OVER
+		msg.gameOver.gid = self.game.gid
+		msg.gameOver.result.CopyFrom(myresult)
+
+		self.send_msg(msg)
+
+	def startCountDown(self):
+		if not self.countTimer.IsRunning():
+			self.countTimer.Start()
+
+	def stopCountDown(self):
+		if self.countTimer.IsRunning():
+			self.countTimer.Stop()
 
 	def doContinue(self):
 		# restart the game

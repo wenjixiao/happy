@@ -166,9 +166,9 @@ class BasicClient(wx.Frame):
 
 		elif msg.type == pb.MsgType.LINE_BROKEN:
 			self.withGameFrame(msg.lineBroken.gid,lambda gf: gf.lineBroken())
-			
-		elif msg.type == pb.MsgType.STATE_CHANGED:
-			self.withGameFrame(msg.stateChanged.gid,lambda gf: gf.stateChanged(msg.stateChanged.State))
+
+		elif msg.type == pb.MsgType.COMEBACK:
+			self.withGameFrame(msg.comeback.gid,lambda gf: gf.doContinue())
 
 	def withGameFrame(self,gid,myfun):
 		for gameFrame in self.gameFrames:
