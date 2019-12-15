@@ -84,8 +84,14 @@ type MySessionMsg struct {
 	Msg *pb.Msg
 }
 
+type GidPid struct {
+	Gid int32
+	Pid string
+}
+
 var sessions []*Session
 var games []*pb.Game
+var countdowns map[GidPid]int32
 
 var myGidResultChan chan *MyGidResult
 var myOpSessionChan chan *MyOpSession
@@ -108,6 +114,8 @@ func Init(){
 
 	sessions  = []*Session{}
 	games = []*pb.Game{}
+	// record the linebroken game and players
+	countdowns = make(map[GidPid]int32)
 
 	myGidResultChan = make(chan *MyGidResult,ChanBuf)
 	myOpSessionChan = make(chan *MyOpSession,ChanBuf)
@@ -203,51 +211,45 @@ func LineBroken(session *Session) {
 
 			SendToOtherPlayer(game,session,msg)
 
-			go CountDown(game)
+			countdowns[GidPid{game.Gid,player.Pid}] = COUNTING_DOWN
 		}
 	}
 }
 
-func CountDown(game *pb.Game){
-	var count int32 = COUNTING_DOWN
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
+func LineBrokenEnded(gidpid GidPid){
+	if game,ok := GetGame(gidpid.Gid); ok {
+		result := &pb.Result{
+			Winner: NotBrokenColor(game), 
+			EndType: pb.EndType_LINEBROKEN}
 
-	for range timer.C {
-		if count > 10 {
-			if count % 10 == 0 {
-				sendCountDown(game,count)
-			}
-			count -= 1
-		}else{
-			if count < 0 {
-				LineBrokenEnded(game)
-				break
-			}else{
-				sendCountDown(game,count)
-				count -= 1
-			}
-		}
+		game.State = pb.State_ENDED
+		game.Result = result
+
+		msg := &pb.Msg{
+			Type: pb.MsgType_GAME_OVER,
+			Union: &pb.Msg_GameOver{&pb.GameOver{Gid: game.Gid, Result: result}}}
+
+		lineBrokenSend(game,gidpid.Pid,msg)
 	}
 }
 
-func LineBrokenEnded(game *pb.Game){
-	result := &pb.Result{
-		Winner: NotBrokenColor(game), 
-		EndType: pb.EndType_LINEBROKEN}
-
-	game.State = pb.State_ENDED
-	game.Result = result
-
-	msg := &pb.Msg{
-		Type: pb.MsgType_GAME_OVER,
-		Union: &pb.Msg_GameOver{&pb.GameOver{Gid: game.Gid, Result: result}}}
-
+func lineBrokenSend(game *pb.Game,brokenPid string,msg *pb.Msg) {
 	for _,player := range game.Players {
-		if session,ok := GetSession(player.Pid); ok {
-			SendMessage(session,msg)
+		if player.Pid != brokenPid {
+			if session,ok := GetSession(player.Pid); ok {
+				SendMessage(session,msg)
+			}
 		}
+	}		
+}
+
+func OtherColor(color pb.Color) (other pb.Color) {
+	if color == pb.Color_BLACK {
+		other = pb.Color_WHITE
+	}else{
+		other = pb.Color_BLACK
 	}
+	return
 }
 
 func NotBrokenColor(game *pb.Game) (color pb.Color) {
@@ -263,15 +265,13 @@ func NotBrokenColor(game *pb.Game) (color pb.Color) {
 	return
 }
 
-func sendCountDown(game *pb.Game,count int32){
+func sendCountDown(gidpid GidPid,count int32){
 	msg := &pb.Msg{
 		Type: pb.MsgType_COUNT_DOWN,
 		Union: &pb.Msg_CountDown{&pb.CountDown{Count: count}}}
 
-	for _,player := range game.Players {
-		if session,ok := GetSession(player.Pid); ok {
-			SendMessage(session,msg)
-		}
+	if game,ok := GetGame(gidpid.Gid); ok {
+		lineBrokenSend(game,gidpid.Pid,msg)
 	}
 }
 
@@ -337,22 +337,51 @@ func Dispatch() {
 	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
 	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
 
+	timer := time.NewTimer(time.Second)
+	// defer timer.Stop()
+
 	// begin
 	for {
 		select {
+		case <-timer.C:
+			if len(countdowns) > 0 {
+				for gidpid,count := range countdowns {
+					if count > 10 {
+						if count % 10 == 0 {
+							sendCountDown(gidpid,count)
+						}
+						countdowns[gidpid] -= 1
+					}else{
+						if count < 0 {
+							LineBrokenEnded(gidpid)
+							break
+						}else{
+							sendCountDown(gidpid,count)
+							countdowns[gidpid] -= 1
+						}
+					}
+				}
+			}
+
 		case myOpSession := <-myOpSessionChan:
 			switch myOpSession.Op {
 			case OP_ADD_SESSION:
-				mygames := GetGamesByPid(myOpSession.Session.Player.Pid)
+				mypid := myOpSession.Session.Player.Pid
+				mygames := GetGamesByPid(mypid)
 				for _,game := range mygames {
 					if game.State == pb.State_BROKEN {
+						delete(countdowns,GidPid{game.Gid,mypid})
+
 						stateChanged := false
 						if CanGameStart(game) {
 							game.State = pb.State_RUNNING
 							stateChanged = true
 						}
+
+						// return game when already have game
 						msg := &pb.Msg{Type: pb.MsgType_GAME, Union: &pb.Msg_Game{game}}
 						SendMessage(myOpSession.Session,msg)
+
 						// state change notify
 						if stateChanged {
 							msg1 := &pb.Msg{

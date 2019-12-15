@@ -298,6 +298,15 @@ class GameFrame(wx.Frame):
 		for clockPane in self.playersPane.guide.values():
 			clockPane.paused()
 
+	def stateChanged(self,state):
+		self.game.state = state
+		self.checkStart()
+
+	def lineBroken(self):
+		if self.isMyTurn():
+			self.game.state = pb.State.BROKEN
+			self.stopMyClock()
+
 	def doContinue(self):
 		# restart the game
 		self.game.state == pb.State.RUNNING
