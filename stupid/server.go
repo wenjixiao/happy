@@ -6,7 +6,6 @@ import (
 	"net"
 	"math/rand"
 	"time"
-
 )
 
 const (
@@ -24,11 +23,6 @@ type Session struct {
 
 type WithSession struct {
 	Session *Session
-}
-
-type MyGidResult struct {
-	Gid int32
-	Result *pb.Result
 }
 
 type MyOpSession struct {
@@ -88,7 +82,6 @@ type MySessionMsg struct {
 var sessions []*Session
 var games []*pb.Game
 
-var myGidResultChan chan *MyGidResult
 var myOpSessionChan chan *MyOpSession
 var myInviteChan chan *MyInvite
 var myInviteAnswerChan chan *MyInviteAnswer
@@ -110,7 +103,6 @@ func Init(){
 	sessions  = []*Session{}
 	games = []*pb.Game{}
 
-	myGidResultChan = make(chan *MyGidResult,ChanBuf)
 	myOpSessionChan = make(chan *MyOpSession,ChanBuf)
 	myInviteChan = make(chan *MyInvite,ChanBuf)
 	myInviteAnswerChan = make(chan *MyInviteAnswer,ChanBuf)
@@ -421,29 +413,6 @@ func Dispatch() {
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
-		case myCountResultAnswer := <-myCountResultAnswerChan:
-			// gameover by count
-			countResultAnswer := myCountResultAnswer.CountResultAnswer
-			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
-			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
-				if agree == 2 {
-					// Gameover
-					msg := &pb.Msg{
-						Type: pb.MsgType_GAME_OVER,
-						Union: &pb.Msg_GameOver{
-							&pb.GameOver{
-								Gid: countResultAnswer.Gid,
-								Result: countResultAnswer.Result}}}
-					SendToAllPlayer(countResultAnswer.Gid,msg)
-				}else{
-					// Restart the game! Someone disagree,but i don't care who refuse. 
-					msg := &pb.Msg{
-						Type: pb.MsgType_DO_CONTINUE,
-						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}}}
-					SendToAllPlayer(countResultAnswer.Gid,msg)
-				}
-			}
-
 		case myCountRequest := <-myCountRequestChan:
 			fromSession := myCountRequest.Session
 			countRequest := myCountRequest.CountRequest
@@ -472,15 +441,29 @@ func Dispatch() {
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
-		case myGidResult := <-myGidResultChan:
-			msg := &pb.Msg{
-				Type: pb.MsgType_GAME_OVER,
-				Union: &pb.Msg_GameOver{
-					&pb.GameOver{
-						Gid: myGidResult.Gid,
-						Result: myGidResult.Result}}}
-			SendToAllPlayer(myGidResult.Gid,msg)
-
+		case myCountResultAnswer := <-myCountResultAnswerChan:
+			// gameover by count
+			countResultAnswer := myCountResultAnswer.CountResultAnswer
+			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
+			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
+				if agree == 2 {
+					// Gameover
+					msg := &pb.Msg{
+						Type: pb.MsgType_GAME_OVER,
+						Union: &pb.Msg_GameOver{
+							&pb.GameOver{
+								Gid: countResultAnswer.Gid,
+								Result: countResultAnswer.Result}}}
+					SendToAllPlayer(countResultAnswer.Gid,msg)
+				}else{
+					// Restart the game! Someone disagree,but i don't care who refuse. 
+					msg := &pb.Msg{
+						Type: pb.MsgType_DO_CONTINUE,
+						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}}}
+					SendToAllPlayer(countResultAnswer.Gid,msg)
+				}
+			}
+			
 		} // select ended
 	} // for ended
 }
@@ -495,12 +478,6 @@ func AgreeCountResultAnswers(theCountResultAnswers []*pb.CountResultAnswer,gid i
 		}
 	}
 	return
-}
-
-func ProcessCount(gid int32,deads []*pb.Stone) {
-	var result *pb.Result
-	// @todo Here,we compute the game result
-	myGidResultChan <- &MyGidResult{gid,result}
 }
 
 func GetDeadStones(theDeadStones []*pb.DeadStones,gid int32) (stones []*pb.Stone,count int) {
