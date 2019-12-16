@@ -168,7 +168,7 @@ class BasicClient(wx.Frame):
 			self.withGameFrame(msg.lineBroken.gid,lambda gf: gf.lineBroken())
 
 		elif msg.type == pb.MsgType.COMEBACK:
-			self.withGameFrame(msg.comeback.gid,lambda gf: gf.doContinue())
+			self.withGameFrame(msg.comeback.gid,lambda gf: gf.comeback())
 
 		elif msg.type == pb.MsgType.DEAD_STONES:
 			self.withGameFrame(msg.deadStones.gid,lambda gf: gf.deadStones(msg.deadStones.stones))

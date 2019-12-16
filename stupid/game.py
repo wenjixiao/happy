@@ -104,15 +104,14 @@ class ClockPane(wx.Panel):
 	def needSendClock(self):
 		# 如果有保留时间，一分钟发送一个通知
 		# 如果没有保留时间，每十秒发送一个通知，最后十秒，一秒发送一个
-		if self.clock.baoLiu > 0 && self.clock.baoLiu % 60 == 0 {
+		if self.clock.baoLiu > 0:
+			if self.clock.baoLiu % 60 == 0:
+				self.sendClockNotify()
+		elif self.clock.duMiao > 10:
+			if self.clock.duMiao % 10 == 0:
+				self.sendClockNotify()
+		else:			
 			self.sendClockNotify()
-		}else{
-			if self.clock.duMiao >= 10 && self.clock.duMiao % 10 == 0 {
-				self.sendClockNotify()
-			}else{
-				self.sendClockNotify()
-			}
-		}
 
 	def sendClockNotify(self):
 		msg = pb.Msg()
@@ -215,7 +214,7 @@ class GameFrame(wx.Frame):
 		return self.boardPane.getNextColor() == self.myColor()
 
 	def sendMsg(self,msg):
-		self.GetParent().send_msg(msg)
+		self.GetParent().sendMsg(msg)
 
 	def onMyAction(self,event):
 		myline = self.inputText.GetValue().split()
@@ -249,10 +248,14 @@ class GameFrame(wx.Frame):
 			msg.type = pb.MsgType.COUNT_REQUEST
 			msg.countRequest.gid = self.game.gid
 			self.sendMsg(msg)
+
+		elif cmd == "myturn":
+			logging.info(self.isMyTurn())
+
 # ---------------------------------------------------------			
 	def startCountDown(self):
 		if not self.countTimer.IsRunning():
-			self.countTimer.Start()
+			self.countTimer.Start(1000)
 
 	def stopCountDown(self):
 		if self.countTimer.IsRunning():
@@ -317,15 +320,18 @@ class GameFrame(wx.Frame):
 		"我等两分钟，对面超时，我就胜"
 		self.count -= 1
 
-		if self.count > 10 and self.count % 10 == 0 :
-			logging.info("countdown 10:{}".format(self.count))
-		elif self.count > 0:
+		if self.count > 10:
+			if self.count % 10 == 0:
+				logging.info("countdown 10:{}".format(self.count))
+		elif self.count >= 0 and self.count <= 10:
 			logging.info("countdown 1:{}".format(self.count))
 		else:
 			self.countOverflow()
 
 	def countOverflow(self):
 		"对面超时了"
+		self.stopCountDown()
+
 		myresult = pb.Result()
 		myresult.winner = self.myColor()
 		myresult.endType = pb.EndType.LINEBROKEN
@@ -353,8 +359,16 @@ class GameFrame(wx.Frame):
 
 	def doContinue(self):
 		"断线，申请数目之后，都需要再开始一下。申请数目会使game暂停。"
-		self.game.state == pb.State.RUNNING
-		self.checkStart()
+		if self.game.state == pb.State.PAUSED:
+			self.game.state == pb.State.RUNNING
+			self.checkStart()
+
+	def comeback(self):
+		"after linebroken,if player comeback"
+		if self.game.state == pb.State.BROKEN:
+			self.stopCountDown()
+			self.game.state = pb.State.RUNNING
+			self.checkStart()
 
 	def iamTimeout(self):
 		"我超时了，输了，棋局结束了"

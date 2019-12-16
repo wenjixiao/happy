@@ -288,6 +288,16 @@ func Dispatch() {
 		case myOpSession := <-myOpSessionChan:
 			switch myOpSession.Op {
 			case OP_ADD_SESSION:
+				msg := &pb.Msg{
+					Type: pb.MsgType_LOGIN_OK,
+					Union: &pb.Msg_LoginOk{
+						&pb.LoginOk{
+							Player: myOpSession.Session.Player,
+							Data: &pb.Data{Players: GetPlayers(),Games: games}}}}
+				SendMessage(myOpSession.Session, msg)
+
+				AddSession(myOpSession.Session)
+
 				mypid := myOpSession.Session.Player.Pid
 				for _,game := range GetGamesByPid(mypid) {
 					if game.State == pb.State_BROKEN {
@@ -309,16 +319,6 @@ func Dispatch() {
 						}
 					}
 				}
-
-				AddSession(myOpSession.Session)
-
-				msg := &pb.Msg{
-					Type: pb.MsgType_LOGIN_OK,
-					Union: &pb.Msg_LoginOk{
-						&pb.LoginOk{
-							Player: myOpSession.Session.Player,
-							Data: &pb.Data{Players: GetPlayers(),Games: games}}}}
-				SendMessage(myOpSession.Session, msg)
 
 			case OP_REMOVE_SESSION:
 				RemoveSession(myOpSession.Session)
@@ -512,7 +512,9 @@ func SendToOtherPlayer(game *pb.Game,fromSession *Session,msg *pb.Msg) {
 
 func SendingMsg(){
 	for mySessionMsg := range mySessionMsgChan {
-		SendMsg(mySessionMsg.Session,mySessionMsg.Msg)
+		msg := mySessionMsg.Msg
+		SendMsg(mySessionMsg.Session,msg)
+		log.Printf("sended msg: \n%s\n",msg)
 	}
 }
 
