@@ -7,7 +7,6 @@ from basic import AsyncThread
 
 logging.basicConfig(level = logging.DEBUG)
 
-# Bind(event, handler, source=None, id=wx.ID_ANY, id2=wx.ID_ANY)
 class BasicClient(wx.Frame):
 	def __init__(self, parent, title):
 		super(BasicClient, self).__init__(parent, title=title, size=(600, 400))
@@ -63,7 +62,7 @@ class BasicClient(wx.Frame):
 			msg.type = pb.MsgType.LOGIN
 			msg.login.pid = myline[1]
 			msg.login.passwd = myline[2]
-			self.send_msg(msg)
+			self.sendMsg(msg)
 
 		elif cmd == "invite":
 			dialog = ProtoDialog(self,None)
@@ -73,18 +72,18 @@ class BasicClient(wx.Frame):
 				msg.type = pb.MsgType.INVITE
 				msg.invite.pid = myline[1]
 				msg.invite.proto.CopyFrom(dialog.getProto())
-				self.send_msg(msg)
+				self.sendMsg(msg)
 			dialog.Destroy()
 
 		elif cmd == "logout":
 			msg = pb.Msg()
 			msg.type = pb.MsgType.LOGOUT
-			self.send_msg(msg)
+			self.sendMsg(msg)
 
 		elif cmd == "data":
 			msg = pb.Msg()
 			msg.type = pb.MsgType.DATA
-			self.send_msg(msg)
+			self.sendMsg(msg)
 
 		self.input_text.Clear()
 # ---------------------------------------------------------
@@ -104,7 +103,7 @@ class BasicClient(wx.Frame):
 			if result == ProtoDialog.CHANGE:
 				# resend a invite to pid,use the changed proto
 				msg.invite.proto.CopyFrom(dialog.getProto())
-				self.send_msg(msg)
+				self.sendMsg(msg)
 			else:
 				# not change,agree or refuse
 				msg1 = pb.Msg()
@@ -112,7 +111,7 @@ class BasicClient(wx.Frame):
 				msg1.inviteAnswer.agree = True if result == ProtoDialog.OK else False
 				msg1.inviteAnswer.pid = msg.invite.pid
 				msg1.inviteAnswer.proto.CopyFrom(msg.invite.proto)
-				self.send_msg(msg1)
+				self.sendMsg(msg1)
 			dialog.Destroy()
 
 		elif msg.type == pb.MsgType.INVITE_ANSWER:
@@ -138,7 +137,7 @@ class BasicClient(wx.Frame):
 				msg1.countResultAnswer.gid = msg.gameOver.gid
 				msg1.countResultAnswer.result.CopyFrom(msg.gameOver.result)
 				msg1.countResultAnswer.agree = True if result == wx.ID_YES else False
-				self.send_msg(msg1)
+				self.sendMsg(msg1)
 			else:
 				# timeout or admit 超时或者认输，棋局就真的结束了！
 				self.withGameFrame(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
@@ -180,7 +179,7 @@ class BasicClient(wx.Frame):
 			if gameFrame.game.gid == gid:
 				myfun(gameFrame)
 
-	def send_msg(self,msg):
+	def sendMsg(self,msg):
 		if not self.async_thread.transport.is_closing():
 			self.async_thread.send_msg(msg)
 		else:
@@ -194,7 +193,10 @@ class BasicClient(wx.Frame):
 		logging.debug("connection lost: %s\n" % exc)
 
 # ---------------------------------------------------------
+
 if __name__ == '__main__':
 	app = wx.App()
 	BasicClient(None, title='*** basic client ***')
 	app.MainLoop()
+
+# ---------------------------------------------------------	

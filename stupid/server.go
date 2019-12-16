@@ -463,7 +463,7 @@ func Dispatch() {
 					SendToAllPlayer(countResultAnswer.Gid,msg)
 				}
 			}
-			
+
 		} // select ended
 	} // for ended
 }
@@ -510,7 +510,7 @@ func SendToOtherPlayer(game *pb.Game,fromSession *Session,msg *pb.Msg) {
 	}
 }
 
-func MySendMsg(){
+func SendingMsg(){
 	for mySessionMsg := range mySessionMsgChan {
 		SendMsg(mySessionMsg.Session,mySessionMsg.Msg)
 	}
@@ -573,7 +573,7 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 
 func main() {
 	Init()
-	go MySendMsg()
+	go SendingMsg()
 	go Dispatch()
 	ListenAndServ()
 }
