@@ -62,7 +62,8 @@ type MyGameOver struct {
 }
 
 type MyDeadStones struct {
-	DeadStones *pb.DeadStones		
+	WithSession
+	DeadStones *pb.DeadStones
 } 
 
 type MyCountResultAnswer struct {
@@ -287,7 +288,6 @@ func CanGameStart(game *pb.Game) bool {
 
 func Dispatch() {
 	// all deadStones messages saved here
-	var recordDeadStones []*pb.DeadStones = make([]*pb.DeadStones,2)
 	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
 
 	// begin
@@ -414,10 +414,11 @@ func Dispatch() {
 			}
 
 		case myDeadStones := <-myDeadStonesChan:
+			fromSession := myDeadStones.Session
 			deadStones := myDeadStones.DeadStones
-			recordDeadStones = append(recordDeadStones,deadStones)
-			if stones,count := GetDeadStones(recordDeadStones,deadStones.Gid); count == 2 {
-				go ProcessCount(deadStones.Gid,stones)
+			if game,ok := GetGame(deadStones.Gid); ok {
+				msg := &pb.Msg{Type: pb.MsgType_DEAD_STONES, Union: &pb.Msg_DeadStones{deadStones}}
+				SendToOtherPlayer(game,fromSession,msg)
 			}
 
 		case myCountResultAnswer := <-myCountResultAnswerChan:
@@ -577,7 +578,7 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 		myGameOverChan <- &MyGameOver{WithSession{session},msg.GetGameOver()}
 
 	case pb.MsgType_DEAD_STONES:
-		myDeadStonesChan <- &MyDeadStones{msg.GetDeadStones()}
+		myDeadStonesChan <- &MyDeadStones{WithSession{session},msg.GetDeadStones()}
 
 	case pb.MsgType_COUNT_RESULT_ANSWER:
 		myCountResultAnswerChan <- &MyCountResultAnswer{msg.GetCountResultAnswer()}

@@ -4,7 +4,7 @@ import logging
 
 def otherColor(color):
 	return pb.Color.BLACK if color == pb.Color.WHITE else pb.Color.WHITE
-
+# ---------------------------------------------------------
 class PlayersPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
 		super(PlayersPane,self).__init__(parent)
@@ -42,7 +42,7 @@ class PlayersPane(wx.Panel):
 
 	def setClock(self,pid,clock):
 		self.guide[pid].setClock(clock)
-
+# ---------------------------------------------------------
 class ClockPane(wx.Panel):
 	def __init__(self,parent,gameFrame,clock):
 		super(ClockPane,self).__init__(parent)
@@ -120,20 +120,25 @@ class ClockPane(wx.Panel):
 		msg.clockNotify.gid = self.gameFrame.game.gid
 		msg.clockNotify.pid = self.gameFrame.myPlayer().pid
 		msg.clockNotify.clock.CopyFrom(self.clock)
-		self.gameFrame.send_msg(msg)
+		self.gameFrame.sendMsg(msg)
+
+	def isRunning(self):
+		return self.timer.IsRunning()
 
 	def start(self):
 		self.timer.Start(1000)
 
 	def paused(self):
+		"stop和paused是有区别的！stop要重置一下读秒的！"
 		if self.timer.IsRunning():
 			self.timer.Stop()
 
 	def stop(self):
+		"仿棋钟设计，每次stop，重置读秒！"
 		if self.timer.IsRunning():
 			self.timer.Stop()
 			self.resetDuMiao()
-
+# ---------------------------------------------------------
 class BoardPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
 		super(BoardPane,self).__init__(parent)
@@ -160,9 +165,11 @@ class BoardPane(wx.Panel):
 		else:
 			lastStone = self.getGame().stones[c-1]
 			return otherColor(lastStone.color)
-
+# ---------------------------------------------------------
 class GameFrame(wx.Frame):
+
 	COUNTING = 60*2
+
 	def __init__(self,parent,game):
 		super(GameFrame, self).__init__(parent, size=(400, 600))
 		self.game = game
@@ -187,45 +194,19 @@ class GameFrame(wx.Frame):
 		self.checkStart()
 		self.countTimer = wx.Timer(self)
 		self.Bind(wx.EVT_TIMER, self.onCount, self.countTimer)
-
-	def canPutStone(self):
-		return self.game.state == pb.State.RUNNING
-
-	def myClock(self):
-		return self.playersPane.guide[self.myPlayer().pid]
-
-	def clockNotify(self,pid,clock):
-		self.playersPane.setClock(pid,clock)
-
-	def startMyClock(self):
-		self.myClock().start()
-
-	def stopMyClock(self):
-		self.myClock().stop()
+# ---------------------------------------------------------
+	def isMyClockRunning(self):
+		return self.myClockPane().isRunning()
 
 	def checkStart(self):
-		if self.canPutStone() and self.isMyTurn():
-			self.startMyClock()
+		if self.game.state == pb.State.RUNNING and self.isMyTurn():
+			self.myClockPane().start()
+
+	def myClockPane(self):
+		return self.playersPane.guide[self.myPlayer().pid]
 
 	def myColor(self):
 		return pb.Color.BLACK if self.game.players[self.game.blackIndex] == self.myPlayer() else pb.Color.WHITE
-
-	def putStone(self,stone):
-		if self.game.state != pb.State.RUNNING:
-			return
-
-		if self.isMyTurn():
-			self.boardPane.addStone(stone)
-			self.stopMyClock()
-
-			msg = pb.Msg()
-			msg.type = pb.MsgType.HAND
-			msg.hand.gid = self.game.gid
-			msg.hand.stone.CopyFrom(stone)
-			self.send_msg(msg)
-		else:
-			self.boardPane.addStone(stone)
-			self.checkStart()
 
 	def myPlayer(self):
 		return self.GetParent().player
@@ -233,11 +214,14 @@ class GameFrame(wx.Frame):
 	def isMyTurn(self):
 		return self.boardPane.getNextColor() == self.myColor()
 
+	def sendMsg(self,msg):
+		self.GetParent().send_msg(msg)
+
 	def onMyAction(self,event):
 		myline = self.inputText.GetValue().split()
 		cmd = myline[0]
 		if cmd == "stone":
-			if self.canPutStone() and self.isMyTurn():
+			if self.isMyClockRunning():
 				stone = pb.Stone()
 				stone.color = self.myColor()
 				stone.x = int(myline[1])
@@ -256,7 +240,7 @@ class GameFrame(wx.Frame):
 			msg.gameOver.gid = self.game.gid
 			msg.gameOver.result.CopyFrom(result)
 
-			self.send_msg(msg)
+			self.sendMsg(msg)
 
 		elif cmd == "count":
 			self.doPaused()
@@ -264,12 +248,39 @@ class GameFrame(wx.Frame):
 			msg = pb.Msg()
 			msg.type = pb.MsgType.COUNT_REQUEST
 			msg.countRequest.gid = self.game.gid
-			self.send_msg(msg)
+			self.sendMsg(msg)
+# ---------------------------------------------------------			
+	def startCountDown(self):
+		if not self.countTimer.IsRunning():
+			self.countTimer.Start()
 
-	def send_msg(self,msg):
-		self.GetParent().send_msg(msg)
+	def stopCountDown(self):
+		if self.countTimer.IsRunning():
+			self.countTimer.Stop()
+# ---------------------------------------------------------
+	def clockNotify(self,pid,clock):
+		"收到对面的时间更新"
+		self.playersPane.setClock(pid,clock)
+
+	def putStone(self,stone):
+		"下一个子，到棋盘上，这个子可能是你下的，也可能是对面下的"
+		if self.game.state != pb.State.RUNNING:
+			return
+		if self.isMyTurn():
+			self.boardPane.addStone(stone)
+			self.myClockPane().stop()
+
+			msg = pb.Msg()
+			msg.type = pb.MsgType.HAND
+			msg.hand.gid = self.game.gid
+			msg.hand.stone.CopyFrom(stone)
+			self.sendMsg(msg)
+		else:
+			self.boardPane.addStone(stone)
+			self.checkStart()
 
 	def countRequest(self):
+		"对面发出的数子请求"
 		dialog = wx.MessageDialog(self, 'Are you want to count?', 'Question', 
         	wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 		result = dialog.ShowModal()
@@ -280,35 +291,30 @@ class GameFrame(wx.Frame):
 		msg1.type = pb.MsgType.COUNT_REQUEST_ANSWER
 		msg1.countRequestAnswer.gid = self.game.gid
 		msg1.countRequestAnswer.agree = isAgree
-		self.send_msg(msg1)
+		self.sendMsg(msg1)
 
 		if isAgree:
 			self.doPaused()
 			self.selectDeadStones()
 
 	def selectDeadStones(self):
+		"我要选死子了"
 		logging.info("selectDeadStones invoked")
 
+	def deadStones(self,stones):
+		"对面确认了他的死子"
+		pass
+
 	def gameover(self,result):
-		self.stopMyClock()
+		"以这个result结束game"
+		self.myClockPane().stop()
 		self.game.state = pb.State.ENDED
 		self.game.result.CopyFrom(result)
 
 		self.boardPane.updateView()
 
-	def doPaused(self):
-		# pause me
-		self.game.state == pb.State.PAUSED
-		for clockPane in self.playersPane.guide.values():
-			clockPane.paused()
-
-	def lineBroken(self):
-		if self.isMyTurn():
-			self.game.state = pb.State.BROKEN
-			self.stopMyClock()
-		self.startCountDown()
-
 	def onCount(self,event):
+		"我等两分钟，对面超时，我就胜"
 		self.count -= 1
 
 		if self.count > 10 and self.count % 10 == 0 :
@@ -319,6 +325,7 @@ class GameFrame(wx.Frame):
 			self.countOverflow()
 
 	def countOverflow(self):
+		"对面超时了"
 		myresult = pb.Result()
 		myresult.winner = self.myColor()
 		myresult.endType = pb.EndType.LINEBROKEN
@@ -330,22 +337,27 @@ class GameFrame(wx.Frame):
 		msg.gameOver.gid = self.game.gid
 		msg.gameOver.result.CopyFrom(myresult)
 
-		self.send_msg(msg)
+		self.sendMsg(msg)
 
-	def startCountDown(self):
-		if not self.countTimer.IsRunning():
-			self.countTimer.Start()
+	def lineBroken(self):
+		"对面断线了。linebroken是要倒计时的！"
+		if self.isMyTurn():
+			self.game.state = pb.State.BROKEN
+			self.myClockPane().paused()
+		self.startCountDown()
 
-	def stopCountDown(self):
-		if self.countTimer.IsRunning():
-			self.countTimer.Stop()
+	def doPaused(self):
+		"暂停当前game"
+		self.game.state == pb.State.PAUSED
+		self.myClock().paused()
 
 	def doContinue(self):
-		# restart the game
+		"断线，申请数目之后，都需要再开始一下。申请数目会使game暂停。"
 		self.game.state == pb.State.RUNNING
 		self.checkStart()
 
 	def iamTimeout(self):
+		"我超时了，输了，棋局结束了"
 		myresult = pb.Result()
 		myresult.winner = otherColor(self.myColor())
 		myresult.endType = pb.EndType.TIMEOUT
@@ -357,5 +369,6 @@ class GameFrame(wx.Frame):
 		msg.gameOver.gid = self.game.gid
 		msg.gameOver.result.CopyFrom(myresult)
 
-		self.send_msg(msg)
+		self.sendMsg(msg)
 
+# ---------------------------------------------------------

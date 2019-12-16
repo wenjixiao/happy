@@ -7,7 +7,6 @@ from basic import AsyncThread
 
 logging.basicConfig(level = logging.DEBUG)
 
-
 # Bind(event, handler, source=None, id=wx.ID_ANY, id2=wx.ID_ANY)
 class BasicClient(wx.Frame):
 	def __init__(self, parent, title):
@@ -88,8 +87,7 @@ class BasicClient(wx.Frame):
 			self.send_msg(msg)
 
 		self.input_text.Clear()
-
-
+# ---------------------------------------------------------
 	def msg_received(self,msg):
 		logging.info("=========received==========")
 		logging.info(msg)
@@ -128,6 +126,7 @@ class BasicClient(wx.Frame):
 			self.withGameFrame(msg.hand.gid,lambda gf: gf.putStone(msg.hand.stone))
 
 		elif msg.type == pb.MsgType.GAME_OVER:
+			# 申请数目，也是结束棋局的一种方式。如果对方不同意数目，还得继续下。
 			if msg.gameOver.result.endType == pb.EndType.COUNT:
 				# we get the count result,we also need to ask,if he agree the count result
 				words = 'Are you agree the count result of gameover?'
@@ -141,14 +140,15 @@ class BasicClient(wx.Frame):
 				msg1.countResultAnswer.agree = True if result == wx.ID_YES else False
 				self.send_msg(msg1)
 			else:
-				# timeout or admit
+				# timeout or admit 超时或者认输，棋局就真的结束了！
 				self.withGameFrame(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
+			# 收到数目请求
 			self.withGameFrame(msg.countRequest.gid,lambda gf: gf.countRequest())
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
-			# the next thing is select dead stones,because the other player has agree
+			# 收到数目回答。同意就开始数子，不同意，就继续。
 			cra = msg.countRequestAnswer
 			def myfun(gf):
 				if cra.agree:
@@ -158,6 +158,7 @@ class BasicClient(wx.Frame):
 			self.withGameFrame(cra.gid,myfun)
 		
 		elif msg.type == pb.MsgType.DO_CONTINUE:
+			# 目前，对于数子的结果，如果两人没达成一致，服务器会发出docontinue消息。
 			self.withGameFrame(msg.doContinue.gid,lambda gf: gf.doContinue())
 
 		elif msg.type == pb.MsgType.CLOCK_NOTIFY:
@@ -170,7 +171,11 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.COMEBACK:
 			self.withGameFrame(msg.comeback.gid,lambda gf: gf.doContinue())
 
+		elif msg.type == pb.MsgType.DEAD_STONES:
+			self.withGameFrame(msg.deadStones.gid,lambda gf: gf.deadStones(msg.deadStones.stones))
+# ---------------------------------------------------------
 	def withGameFrame(self,gid,myfun):
+		"这个是调用某个gameframe方法的快捷方式"
 		for gameFrame in self.gameFrames:
 			if gameFrame.game.gid == gid:
 				myfun(gameFrame)
@@ -185,9 +190,10 @@ class BasicClient(wx.Frame):
 		logging.debug("connection made")
 		
 	def connection_lost_callback(self,exc):
+		"服务器坏掉的情况，比较少见！"
 		logging.debug("connection lost: %s\n" % exc)
 
-
+# ---------------------------------------------------------
 if __name__ == '__main__':
 	app = wx.App()
 	BasicClient(None, title='*** basic client ***')
