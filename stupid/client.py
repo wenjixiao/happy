@@ -125,22 +125,8 @@ class BasicClient(wx.Frame):
 			self.withGameFrame(msg.hand.gid,lambda gf: gf.putStone(msg.hand.stone))
 
 		elif msg.type == pb.MsgType.GAME_OVER:
-			# 申请数目，也是结束棋局的一种方式。如果对方不同意数目，还得继续下。
-			if msg.gameOver.result.endType == pb.EndType.COUNT:
-				# we get the count result,we also need to ask,if he agree the count result
-				words = 'Are you agree the count result of gameover?'
-				dialog = wx.MessageDialog(self, words, 'Question', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-				result = dialog.ShowModal()
-
-				msg1 = pb.Msg()
-				msg1.type = pb.MsgType.COUNT_RESULT_ANSWER
-				msg1.countResultAnswer.gid = msg.gameOver.gid
-				msg1.countResultAnswer.result.CopyFrom(msg.gameOver.result)
-				msg1.countResultAnswer.agree = True if result == wx.ID_YES else False
-				self.sendMsg(msg1)
-			else:
-				# timeout or admit 超时或者认输，棋局就真的结束了！
-				self.withGameFrame(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
+			# timeout or admit 超时或者认输，棋局就真的结束了！
+			self.withGameFrame(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
 			# 收到数目请求

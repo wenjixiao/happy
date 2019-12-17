@@ -84,7 +84,7 @@ message DeadStones {
 	repeated Stone stones = 2;
 }
 
-message CountResultAnswer {
+message CountResult {
 	int32 gid = 1;
 	Result result = 2;
 	bool agree = 3;
@@ -140,7 +140,7 @@ enum MsgType {
 	GAME = 8;
 	COUNT_REQUEST = 9;
 	DEAD_STONES = 10;
-	COUNT_RESULT_ANSWER = 11;
+	COUNT_RESULT = 11;
 	GAME_OVER = 12;
 	COUNT_REQUEST_ANSWER = 13;
 	DO_CONTINUE = 14;
@@ -165,7 +165,7 @@ message Msg{
 		Game game = 10;
 		CountRequest countRequest = 11;
 		DeadStones deadStones = 12;
-		CountResultAnswer countResultAnswer = 13;
+		CountResult countResult = 13;
 		GameOver gameOver = 14;
 		CountRequestAnswer countRequestAnswer = 15;
 		DoContinue doContinue = 16;

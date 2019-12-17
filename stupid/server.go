@@ -15,7 +15,7 @@ const (
 
 	COUNTING_DOWN = 60*2
 )
-
+// ------------------------------------------------------------
 type Session struct {
 	Conn   net.Conn
 	Player *pb.Player
@@ -30,6 +30,11 @@ type MyOpSession struct {
 	Op int
 }
 
+type MySessionMsg struct {
+	WithSession
+	Msg *pb.Msg
+}
+// ------------------------------------------------------------
 type MyInvite struct {
 	WithSession
 	Invite *pb.Invite
@@ -39,7 +44,7 @@ type MyInviteAnswer struct {
 	WithSession
 	InviteAnswer *pb.InviteAnswer
 }
-
+// ------------------------------------------------------------
 type MyHand struct {
 	WithSession
 	Hand *pb.Hand
@@ -48,6 +53,20 @@ type MyHand struct {
 type MyClockNotify struct {
 	WithSession
 	ClockNotify *pb.ClockNotify
+}
+// ------------------------------------------------------------
+type MyCountRequest struct {
+	WithSession
+	CountRequest *pb.CountRequest	
+}
+
+type MyCountRequestAnswer struct {
+	WithSession
+	CountRequestAnswer *pb.CountRequestAnswer
+}
+// ------------------------------------------------------------
+type MyCountResult struct {
+	CountResult *pb.CountResult
 }
 
 type MyGameOver struct {
@@ -59,40 +78,22 @@ type MyDeadStones struct {
 	WithSession
 	DeadStones *pb.DeadStones
 } 
-
-type MyCountResultAnswer struct {
-	CountResultAnswer *pb.CountResultAnswer
-}
-
-type MyCountRequest struct {
-	WithSession
-	CountRequest *pb.CountRequest	
-}
-
-type MyCountRequestAnswer struct {
-	WithSession
-	CountRequestAnswer *pb.CountRequestAnswer
-}
-
-type MySessionMsg struct {
-	WithSession
-	Msg *pb.Msg
-}
+// ------------------------------------------------------------
 
 var sessions []*Session
 var games []*pb.Game
 
 var myOpSessionChan chan *MyOpSession
+var mySessionMsgChan chan *MySessionMsg
 var myInviteChan chan *MyInvite
 var myInviteAnswerChan chan *MyInviteAnswer
 var myHandChan chan *MyHand
-var myGameOverChan chan *MyGameOver
+var myClockNotifyChan chan *MyClockNotify
 var myDeadStonesChan chan *MyDeadStones
-var myCountResultAnswerChan chan *MyCountResultAnswer
 var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
-var mySessionMsgChan chan *MySessionMsg
-var myClockNotifyChan chan *MyClockNotify
+var myCountResultChan chan *MyCountResult
+var myGameOverChan chan *MyGameOver
 
 var idPool *IdPool
 
@@ -104,16 +105,16 @@ func Init(){
 	games = []*pb.Game{}
 
 	myOpSessionChan = make(chan *MyOpSession,ChanBuf)
+	mySessionMsgChan = make(chan *MySessionMsg,ChanBuf*2)
 	myInviteChan = make(chan *MyInvite,ChanBuf)
 	myInviteAnswerChan = make(chan *MyInviteAnswer,ChanBuf)
 	myHandChan = make(chan *MyHand,ChanBuf)
-	myGameOverChan = make(chan *MyGameOver,ChanBuf)
+	myClockNotifyChan = make(chan *MyClockNotify,ChanBuf)
 	myDeadStonesChan = make(chan *MyDeadStones,ChanBuf)
-	myCountResultAnswerChan = make(chan *MyCountResultAnswer,ChanBuf)
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
-	mySessionMsgChan = make(chan *MySessionMsg,ChanBuf*2)
-	myClockNotifyChan = make(chan *MyClockNotify,ChanBuf)
+	myCountResultChan = make(chan *MyCountResult,ChanBuf)
+	myGameOverChan = make(chan *MyGameOver,ChanBuf)
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -279,7 +280,7 @@ func CanGameStart(game *pb.Game) bool {
 }
 
 func Dispatch() {
-	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
+	var recordCountResults []*pb.CountResult = make([]*pb.CountResult,2)
 
 	for {
 		select {
@@ -435,26 +436,26 @@ func Dispatch() {
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
-		case myCountResultAnswer := <-myCountResultAnswerChan:
+		case myCountResult := <-myCountResultChan:
 			// gameover by count
-			countResultAnswer := myCountResultAnswer.CountResultAnswer
-			recordCountResultAnswers = append(recordCountResultAnswers,countResultAnswer)
-			if agree,all := AgreeCountResultAnswers(recordCountResultAnswers,countResultAnswer.Gid); all == 2 {
+			countResult := myCountResult.CountResult
+			recordCountResults = append(recordCountResults,countResult)
+			if agree,all := AgreeCountResults(recordCountResults,countResult.Gid); all == 2 {
 				if agree == 2 {
 					// Gameover
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME_OVER,
 						Union: &pb.Msg_GameOver{
 							&pb.GameOver{
-								Gid: countResultAnswer.Gid,
-								Result: countResultAnswer.Result}}}
-					SendToAllPlayer(countResultAnswer.Gid,msg)
+								Gid: countResult.Gid,
+								Result: countResult.Result}}}
+					SendToAllPlayer(countResult.Gid,msg)
 				}else{
 					// Restart the game! Someone disagree,but i don't care who refuse. 
 					msg := &pb.Msg{
 						Type: pb.MsgType_DO_CONTINUE,
-						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResultAnswer.Gid}}}
-					SendToAllPlayer(countResultAnswer.Gid,msg)
+						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResult.Gid}}}
+					SendToAllPlayer(countResult.Gid,msg)
 				}
 			}
 
@@ -462,11 +463,11 @@ func Dispatch() {
 	} // for ended
 }
 
-func AgreeCountResultAnswers(theCountResultAnswers []*pb.CountResultAnswer,gid int32) (agree int,all int){
-	for _,countResultAnswer := range theCountResultAnswers {
-		if countResultAnswer.Gid == gid {
+func AgreeCountResults(theCountResults []*pb.CountResult,gid int32) (agree int,all int){
+	for _,countResult := range theCountResults {
+		if countResult.Gid == gid {
 			all += 1
-			if countResultAnswer.Agree {
+			if countResult.Agree {
 				agree += 1
 			}
 		}
@@ -553,8 +554,8 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 	case pb.MsgType_DEAD_STONES:
 		myDeadStonesChan <- &MyDeadStones{WithSession{session},msg.GetDeadStones()}
 
-	case pb.MsgType_COUNT_RESULT_ANSWER:
-		myCountResultAnswerChan <- &MyCountResultAnswer{msg.GetCountResultAnswer()}
+	case pb.MsgType_COUNT_RESULT:
+		myCountResultChan <- &MyCountResult{msg.GetCountResult()}
 
 	case pb.MsgType_COUNT_REQUEST:
 		myCountRequestChan <- &MyCountRequest{WithSession{session},msg.GetCountRequest()}

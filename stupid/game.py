@@ -311,7 +311,26 @@ class GameFrame(wx.Frame):
 
 	def deadStones(self,stones):
 		"对面确认了他的死子"
-		pass
+		gameResult = pb.Result()
+		gameResult.endType = pb.EndType.COUNTING
+		gameResult.winner,gameResult.mount = self.computePoints()
+		# 弹出对话框，问一下是否同意结果。发消息给对面，以确定下一步。
+
+		words = "color:"+gameResult.winner+",mount:"+gameResult.mount
+		dialog = wx.MessageDialog(self, words, 'Agree?', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+		result = dialog.ShowModal()
+
+		msg = pb.Msg()
+		msg.type = pb.MsgType.COUNT_RESULT_ANSWER
+		msg.countResultAnswer.gid = msg.gameOver.gid
+		msg.countResultAnswer.result.CopyFrom(gameResult)
+		msg.countResultAnswer.agree = True if result == wx.ID_YES else False
+
+		self.sendMsg(msg)
+
+	def computePoints(self):
+		return (pb.Color.BLACK,1.5)
+
 # ---------------------------------------------------------
 	def gameover(self,result):
 		"以这个result结束game"
