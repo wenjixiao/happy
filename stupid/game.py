@@ -195,13 +195,14 @@ class GameFrame(wx.Frame):
 
 		self.checkStart()
 # ---------------------------------------------------------
-	def isMyClockRunning(self):
-		return self.myClockPane().isRunning()
-
 	def checkStart(self):
+		"所谓start，要么启动时钟，要么启动倒数！"
 		if self.game.state == pb.State.RUNNING and self.isMyTurn():
 			self.myClockPane().start()
-
+		# 断线重连后，会得到一个game，但是此时未必可以开始，要看game.state是不是running。
+		# 如果是broken，那么说明还没有到可以运行的条件。
+		# 此时，需要启动倒数。
+		# 如果两个人都断线了，就算了；一个人断线，就不能让另一个人等太久！
 		if self.game.state == pb.State.BROKEN:
 			self.startCountDown()
 
@@ -224,7 +225,7 @@ class GameFrame(wx.Frame):
 		myline = self.inputText.GetValue().split()
 		cmd = myline[0]
 		if cmd == "stone":
-			if self.isMyClockRunning():
+			if self.myClockPane().isRunning():
 				stone = pb.Stone()
 				stone.color = self.myColor()
 				stone.x = int(myline[1])
@@ -303,7 +304,7 @@ class GameFrame(wx.Frame):
 		if isAgree:
 			self.doPaused()
 			self.selectDeadStones()
-
+# ---------------------------------------------------------
 	def selectDeadStones(self):
 		"我要选死子了"
 		logging.info("selectDeadStones invoked")
@@ -311,7 +312,7 @@ class GameFrame(wx.Frame):
 	def deadStones(self,stones):
 		"对面确认了他的死子"
 		pass
-
+# ---------------------------------------------------------
 	def gameover(self,result):
 		"以这个result结束game"
 		self.myClockPane().stop()
@@ -348,7 +349,7 @@ class GameFrame(wx.Frame):
 		msg.gameOver.result.CopyFrom(myresult)
 
 		self.sendMsg(msg)
-
+# ---------------------------------------------------------
 	def lineBroken(self):
 		"对面断线了。linebroken是要倒计时的！"
 		self.game.state = pb.State.BROKEN
@@ -356,24 +357,25 @@ class GameFrame(wx.Frame):
 			self.myClockPane().paused()
 		self.startCountDown()
 
+	def comeback(self):
+		"收到comeback,意味着万事俱备，可以开始了"
+		if self.game.state == pb.State.BROKEN:
+			self.stopCountDown()
+			self.game.state = pb.State.RUNNING
+			self.checkStart()
+# ---------------------------------------------------------
 	def doPaused(self):
 		"暂停当前game"
 		self.game.state = pb.State.PAUSED
-		self.myClock().paused()
+		if self.isMyTurn():
+			self.myClockPane().paused()
 
 	def doContinue(self):
 		"断线，申请数目之后，都需要再开始一下。申请数目会使game暂停。"
 		if self.game.state == pb.State.PAUSED:
 			self.game.state = pb.State.RUNNING
 			self.checkStart()
-
-	def comeback(self):
-		"received comback,means we can start again"
-		if self.game.state == pb.State.BROKEN:
-			self.stopCountDown()
-			self.game.state = pb.State.RUNNING
-			self.checkStart()
-
+# ---------------------------------------------------------
 	def iamTimeout(self):
 		"我超时了，输了，棋局结束了"
 		myresult = pb.Result()
