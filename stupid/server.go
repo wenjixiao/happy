@@ -279,10 +279,8 @@ func CanGameStart(game *pb.Game) bool {
 }
 
 func Dispatch() {
-	// all deadStones messages saved here
 	var recordCountResultAnswers []*pb.CountResultAnswer = make([]*pb.CountResultAnswer,2)
 
-	// begin
 	for {
 		select {
 		case myOpSession := <-myOpSessionChan:
@@ -306,12 +304,10 @@ func Dispatch() {
 							game.State = pb.State_RUNNING
 						}
 
-						// return game when already have game
 						msg1 := &pb.Msg{Type: pb.MsgType_GAME, Union: &pb.Msg_Game{game}}
 						SendMessage(myOpSession.Session,msg1)
 
 						if ready {
-							// notify the other player,he come back. Means can start
 							msg := &pb.Msg{
 								Type: pb.MsgType_COMEBACK,
 								Union: &pb.Msg_Comeback{&pb.Comeback{Gid: game.Gid}}}
@@ -347,7 +343,6 @@ func Dispatch() {
 			fromSession := myInviteAnswer.Session
 			inviteAnswer := myInviteAnswer.InviteAnswer
 			if inviteAnswer.GetAgree() {
-				// here, we need create the game and tell players to play
 				if session,ok := GetSession(inviteAnswer.Pid); ok {
 					game := CreateGame(fromSession,session,inviteAnswer.Proto)
 					games = append(games,game)
@@ -356,7 +351,6 @@ func Dispatch() {
 					SendMessage(session,msg)
 				}
 			}else{
-				// here, we need to notify the player your answer who invited you
 				if session,ok := GetSession(inviteAnswer.Pid); ok {
 					msg := &pb.Msg{
 						Type: pb.MsgType_INVITE_ANSWER,
@@ -371,20 +365,20 @@ func Dispatch() {
 
 		case myHand := <-myHandChan:
 			if game,ok := GetGame(myHand.Hand.Gid); ok {
+				game.Stones = append(game.Stones,myHand.Hand.Stone)
+
 				msg := &pb.Msg{Type: pb.MsgType_HAND, Union: &pb.Msg_Hand{myHand.Hand}}
 				SendToOtherPlayer(game,myHand.Session,msg)
 			}
 
 		case myClockNotify := <-myClockNotifyChan:
 			if game,ok := GetGame(myClockNotify.ClockNotify.Gid); ok {
-				// change the game's clock at server too
 				for index,player := range game.Players {
 					if myClockNotify.ClockNotify.Pid == player.Pid {
 						game.Clocks[index] = myClockNotify.ClockNotify.Clock
 						break
 					}
 				}
-				// send clock msg to other player
 				msg := &pb.Msg{
 					Type: pb.MsgType_CLOCK_NOTIFY,
 					Union: &pb.Msg_ClockNotify{myClockNotify.ClockNotify}}

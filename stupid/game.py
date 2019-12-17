@@ -190,9 +190,10 @@ class GameFrame(wx.Frame):
 		panel.SetSizer(vbox)
 
 		self.Show()
-		self.checkStart()
 		self.countTimer = wx.Timer(self)
 		self.Bind(wx.EVT_TIMER, self.onCount, self.countTimer)
+
+		self.checkStart()
 # ---------------------------------------------------------
 	def isMyClockRunning(self):
 		return self.myClockPane().isRunning()
@@ -200,6 +201,9 @@ class GameFrame(wx.Frame):
 	def checkStart(self):
 		if self.game.state == pb.State.RUNNING and self.isMyTurn():
 			self.myClockPane().start()
+
+		if self.game.state == pb.State.BROKEN:
+			self.startCountDown()
 
 	def myClockPane(self):
 		return self.playersPane.guide[self.myPlayer().pid]
@@ -347,24 +351,24 @@ class GameFrame(wx.Frame):
 
 	def lineBroken(self):
 		"对面断线了。linebroken是要倒计时的！"
+		self.game.state = pb.State.BROKEN
 		if self.isMyTurn():
-			self.game.state = pb.State.BROKEN
 			self.myClockPane().paused()
 		self.startCountDown()
 
 	def doPaused(self):
 		"暂停当前game"
-		self.game.state == pb.State.PAUSED
+		self.game.state = pb.State.PAUSED
 		self.myClock().paused()
 
 	def doContinue(self):
 		"断线，申请数目之后，都需要再开始一下。申请数目会使game暂停。"
 		if self.game.state == pb.State.PAUSED:
-			self.game.state == pb.State.RUNNING
+			self.game.state = pb.State.RUNNING
 			self.checkStart()
 
 	def comeback(self):
-		"after linebroken,if player comeback"
+		"received comback,means we can start again"
 		if self.game.state == pb.State.BROKEN:
 			self.stopCountDown()
 			self.game.state = pb.State.RUNNING
