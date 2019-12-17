@@ -78,6 +78,12 @@ type MyDeadStones struct {
 	WithSession
 	DeadStones *pb.DeadStones
 } 
+
+type MyConfirmDead struct {
+	WithSession
+	ConfirmDead *pb.ConfirmDead
+}
+
 // ------------------------------------------------------------
 
 var sessions []*Session
@@ -90,6 +96,7 @@ var myInviteAnswerChan chan *MyInviteAnswer
 var myHandChan chan *MyHand
 var myClockNotifyChan chan *MyClockNotify
 var myDeadStonesChan chan *MyDeadStones
+var myConfirmDeadChan chan *MyConfirmDead
 var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
 var myCountResultChan chan *MyCountResult
@@ -111,6 +118,7 @@ func Init(){
 	myHandChan = make(chan *MyHand,ChanBuf)
 	myClockNotifyChan = make(chan *MyClockNotify,ChanBuf)
 	myDeadStonesChan = make(chan *MyDeadStones,ChanBuf)
+	myConfirmDeadChan = make(chan *MyConfirmDead,ChanBuf)
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
 	myCountResultChan = make(chan *MyCountResult,ChanBuf)
@@ -408,6 +416,12 @@ func Dispatch() {
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
+		case myConfirmDead := <-myConfirmDeadChan:
+			if game,ok := GetGame(myConfirmDead.ConfirmDead.Gid); ok {
+				msg := &pb.Msg{Type: pb.MsgType_CONFIRM_DEAD, Union: &pb.Msg_ConfirmDead{myConfirmDead.ConfirmDead}}
+				SendToOtherPlayer(game,myConfirmDead.Session,msg)
+			}
+
 		case myCountRequest := <-myCountRequestChan:
 			fromSession := myCountRequest.Session
 			countRequest := myCountRequest.CountRequest
@@ -553,6 +567,9 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 
 	case pb.MsgType_DEAD_STONES:
 		myDeadStonesChan <- &MyDeadStones{WithSession{session},msg.GetDeadStones()}
+
+	case pb.MsgType_CONFIRM_DEAD:
+		myConfirmDeadChan <- &MyConfirmDead{WithSession{session},msg.GetConfirmDead()}
 
 	case pb.MsgType_COUNT_RESULT:
 		myCountResultChan <- &MyCountResult{msg.GetCountResult()}

@@ -172,6 +172,7 @@ class GameFrame(wx.Frame):
 	def __init__(self,parent,game):
 		super(GameFrame, self).__init__(parent, size=(400, 600))
 		self.game = game
+		self.deadStones = []
 		self.count = self.COUNTING
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 
@@ -309,10 +310,18 @@ class GameFrame(wx.Frame):
 		"我要选死子了"
 		logging.info("selectDeadStones invoked")
 
-	def deadStones(self,stones):
-		"对面确认了他的死子"
+	def deadStones(self,addOrRemove,stones):
+		"对面选了死子，或者选错取消某些死子"
+		if addOrRemove:
+			self.deadStones.extend(stones)
+		else:
+			for stone in stones:
+				self.deadStones.remove(stone)
+
+	def confirmDead(self):
+		"死的都选完了，可以结算了"
 		gameResult = pb.Result()
-		gameResult.endType = pb.EndType.COUNTING
+		gameResult.endType = pb.EndType.COUNT
 		gameResult.winner,gameResult.mount = self.computePoints()
 		# 弹出对话框，问一下是否同意结果。发消息给对面，以确定下一步。
 
@@ -321,10 +330,10 @@ class GameFrame(wx.Frame):
 		result = dialog.ShowModal()
 
 		msg = pb.Msg()
-		msg.type = pb.MsgType.COUNT_RESULT_ANSWER
-		msg.countResultAnswer.gid = msg.gameOver.gid
-		msg.countResultAnswer.result.CopyFrom(gameResult)
-		msg.countResultAnswer.agree = True if result == wx.ID_YES else False
+		msg.type = pb.MsgType.COUNT_RESULT
+		msg.countResult.gid = self.game.gid
+		msg.countResult.result.CopyFrom(gameResult)
+		msg.countResult.agree = True if result == wx.ID_YES else False
 
 		self.sendMsg(msg)
 

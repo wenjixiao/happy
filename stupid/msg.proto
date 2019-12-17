@@ -18,7 +18,6 @@ enum State {
 	RUNNING = 1;
 	PAUSED = 5;
 	BROKEN = 2;
-	COUNTING = 3;
 	ENDED = 4;
 }
 
@@ -81,7 +80,12 @@ message Comeback {
 
 message DeadStones {
 	int32 gid = 1;
-	repeated Stone stones = 2;
+	bool addOrRemove = 2;
+	repeated Stone stones = 3;
+}
+
+message ConfirmDead {
+	int32 gid = 1;
 }
 
 message CountResult {
@@ -147,6 +151,7 @@ enum MsgType {
 	CLOCK_NOTIFY = 15;
 	LINE_BROKEN = 16;
 	COMEBACK = 19;
+	CONFIRM_DEAD = 20;
 }
 
 //------------------------------------------------
@@ -172,6 +177,7 @@ message Msg{
 		ClockNotify clockNotify = 17;
 		LineBroken lineBroken = 18;
 		Comeback comeback = 21;
+		ConfirmDead confirmDead = 22;
 	}
 }
 
