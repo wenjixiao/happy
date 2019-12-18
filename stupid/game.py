@@ -1,10 +1,10 @@
 import wx
 import pb.msg_pb2 as pb
 import logging
+from board import BoardPane
+from common import otherColor
 
-def otherColor(color):
-	return pb.Color.BLACK if color == pb.Color.WHITE else pb.Color.WHITE
-# ---------------------------------------------------------
+
 class PlayersPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
 		super(PlayersPane,self).__init__(parent)
@@ -42,7 +42,8 @@ class PlayersPane(wx.Panel):
 
 	def setClock(self,pid,clock):
 		self.guide[pid].setClock(clock)
-# ---------------------------------------------------------
+
+
 class ClockPane(wx.Panel):
 	def __init__(self,parent,gameFrame,clock):
 		super(ClockPane,self).__init__(parent)
@@ -137,34 +138,8 @@ class ClockPane(wx.Panel):
 		if self.timer.IsRunning():
 			self.timer.Stop()
 			self.resetDuMiao()
-# ---------------------------------------------------------
-class BoardPane(wx.Panel):
-	def __init__(self,parent,gameFrame):
-		super(BoardPane,self).__init__(parent)
-		vbox = wx.BoxSizer(wx.VERTICAL)
-		self.gameFrame = gameFrame
-		self.outputText = wx.TextCtrl(self, style = wx.TE_MULTILINE | wx.HSCROLL)
-		vbox.Add(self.outputText,proportion=1,flag = wx.EXPAND)
-		self.SetSizer(vbox)
 
-	def getGame(self):
-		return self.gameFrame.game
 
-	def updateView(self):
-		self.outputText.SetValue(str(self.getGame()))
-
-	def addStone(self,stone):
-		self.getGame().stones.append(stone)
-		self.updateView()
-
-	def getNextColor(self):
-		c = len(self.getGame().stones)
-		if c == 0:
-			return pb.Color.BLACK
-		else:
-			lastStone = self.getGame().stones[c-1]
-			return otherColor(lastStone.color)
-# ---------------------------------------------------------
 class GameFrame(wx.Frame):
 
 	COUNTING = 60*2
@@ -287,7 +262,7 @@ class GameFrame(wx.Frame):
 		else:
 			self.boardPane.addStone(stone)
 			self.checkStart()
-
+# ---------------------------------------------------------
 	def countRequest(self):
 		"对面发出的数子请求"
 		dialog = wx.MessageDialog(self, 'Are you want to count?', 'Question', 
@@ -305,7 +280,7 @@ class GameFrame(wx.Frame):
 		if isAgree:
 			self.doPaused()
 			self.selectDeadStones()
-# ---------------------------------------------------------
+
 	def selectDeadStones(self):
 		"我要选死子了"
 		logging.info("selectDeadStones invoked")
