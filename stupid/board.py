@@ -61,14 +61,14 @@ class BoardPane(wx.Panel):
 
 	def OnLeftDown(self,e):
 		userPoint = self.dev2user(e.GetPosition())
-		if validate(userPoint):
+		if validatePoint(userPoint):
 			if self.gameFrame.myClockPane().isRunning():
 				stone = pb.Stone()
 				stone.color = self.gameFrame.myColor()
 				stone.x = userPoint.x
 				stone.y = userPoint.y
 				self.gameFrame.putStone(stone)
-				
+
 	def OnPaint(self,event):
 		dc = wx.PaintDC(self)
 
@@ -111,13 +111,16 @@ class BoardPane(wx.Panel):
 class MainFrame(wx.Frame):
 	def __init__(self, parent, title):
 		super(MainFrame, self).__init__(parent, title=title, size=(600, 600))
-		vbox = wx.BoxSizer(wx.VERTICAL)
+		
 		self.board = BoardPane(self,None)
 		self.button = wx.Button(self,label="hello")
 		self.button.Bind(wx.EVT_BUTTON,self.OnClick)
+
+		vbox = wx.BoxSizer(wx.VERTICAL)
 		vbox.Add(self.board,proportion=1,flag=wx.EXPAND)
 		vbox.Add(self.button,flag=wx.EXPAND)
 		self.SetSizer(vbox)
+
 		self.Centre()
 		self.Show()
 
