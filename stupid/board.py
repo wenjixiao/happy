@@ -11,6 +11,7 @@ class BoardPane(wx.Panel):
 		self.gameFrame = gameFrame
 		self.Bind(wx.EVT_PAINT,self.OnPaint)
 		self.Bind(wx.EVT_SIZE,self.OnSize)
+		self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
 		self.stones = []
 
 	def getGame(self):
@@ -18,6 +19,35 @@ class BoardPane(wx.Panel):
 
 	def getStones(self):
 		return self.getGame().stones
+
+	def OnLeftDown(self,e):
+		p = e.GetPosition()
+		print(self.dev2user(p))
+		# x, y = self.ClientToScreen(e.GetPosition())
+		# ox, oy = self.GetPosition()
+
+	def user2dev(self,userPoint):
+		"devX = userX+0.5*width,devY = 0.5*height-userY"
+		width,height = self.GetClientSize()
+		halfWidth,halfHeight = int(width/2),int(height/2)
+		radius = int(min(width,height)/(20*2))
+		unit = radius * 2
+
+		devX = userPoint.x*unit + halfWidth
+		devY = halfHeight - userPoint.y*unit
+		return wx.Point(devX,devY)
+
+	def dev2user(self,devPoint):
+		"userX = devX - halfWidth,userY = halfHeight - devY"
+		width,height = self.GetClientSize()
+		halfWidth,halfHeight = int(width/2),int(height/2)
+		radius = int(min(width,height)/(20*2))
+		unit = radius * 2
+
+		shangX = (devPoint.x - halfWidth) / unit
+		shangY = (halfHeight - devPoint.y) / unit
+
+		return wx.Point(round(shangX),round(shangY))
 
 	def OnSize(self,event):
 		self.Refresh()
@@ -28,28 +58,21 @@ class BoardPane(wx.Panel):
 		width,height = self.GetClientSize()
 		halfWidth,halfHeight = int(width/2),int(height/2)
 		radius = int(min(width,height)/(20*2))
-		unit = radius * 2
-
-		def user2dev(userPoint):
-			"devX = userX+0.5*width,devY = 0.5*height-userY"
-			devX = userPoint.x*unit + halfWidth
-			devY = halfHeight - userPoint.y*unit
-			return wx.Point(devX,devY)
-
-		def dev2user(devPoint):
-			"userX = devX - halfWidth,userY = halfHeight - devY"
-			userX = (devPoint.x - halfWidth)/unit
-			userY = (halfHeight - devPoint.y)/unit
-			return wx.Point(userX,userY)
 
 		# draw 19*19 lines
 		for i in range(-9,10):
-			dc.DrawLine(user2dev(wx.Point(-9,i)),user2dev(wx.Point(9,i)))
-			dc.DrawLine(user2dev(wx.Point(i,-9)),user2dev(wx.Point(i,9)))
+			dc.DrawLine(self.user2dev(wx.Point(-9,i)),self.user2dev(wx.Point(9,i)))
+			dc.DrawLine(self.user2dev(wx.Point(i,-9)),self.user2dev(wx.Point(i,9)))
 
 		# draw 9 stars
 		for (x,y) in product([-6,0,6],repeat=2):
-			dc.DrawCircle(user2dev(wx.Point(x,y)),int(radius/3))
+			dc.DrawCircle(self.user2dev(wx.Point(x,y)),int(radius/3))
+
+		# draw stones
+		for stone in self.stones:
+			color = wx.BLACK if stone.color == pb.Color.BLACK else wx.WHITE
+			dc.SetBrush(wx.Brush(color))
+			dc.DrawCircle(self.user2dev(wx.Point(stone.x,stone.y)),radius)
 
 	def addStone(self,stone):
 		# self.getStones().append(stone)
