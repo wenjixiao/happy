@@ -1,7 +1,7 @@
 import wx
 import pb.msg_pb2 as pb
 # import logging
-from common import *
+from common import validatePoint
 from itertools import product
 
 class BoardPane(wx.Panel):
