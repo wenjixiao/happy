@@ -146,9 +146,8 @@ def parseStones(stones):
 
 if __name__ == '__main__':
 	p1 = Point(3,3)
-	p2 = Point(3,3)
+	p2 = Point(3,4)
 	s1 = set()
 	s1.add(p1)
 	s1.add(p2)
-	for p in s1:
-		print(p)
+	print(s1)

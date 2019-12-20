@@ -15,7 +15,8 @@ class PlayersPane(wx.Panel):
 		grid = wx.GridBagSizer(3,2)
 
 		for col,(player,clock) in enumerate(zip(self.getGame().players,self.getGame().clocks)):
-			pidSt = wx.StaticText(self,label = self.getPidStr(player))
+			color = "(B)" if self.getGame().blackIndex == col else "(W)"
+			pidSt = wx.StaticText(self,label = self.getPidStr(player)+color)
 			levelSt = wx.StaticText(self,label = self.getLevelStr(player))
 			clockPane = ClockPane(self,self.gameFrame,clock)
 
@@ -179,7 +180,7 @@ class GameFrame(wx.Frame):
 		# 如果是broken，那么说明还没有到可以运行的条件。
 		# 此时，需要启动倒数。
 		# 如果两个人都断线了，就算了；一个人断线，就不能让另一个人等太久！
-		if self.game.state == pb.State.BROKEN:
+		if self.game.broken:
 			self.startCountDown()
 
 	def myClockPane(self):
@@ -322,7 +323,7 @@ class GameFrame(wx.Frame):
 		self.game.state = pb.State.ENDED
 		self.game.result.CopyFrom(result)
 
-		self.boardPane.updateView()
+		self.boardPane.Refresh()
 
 	def onCount(self,event):
 		"我等两分钟，对面超时，我就胜"
@@ -355,14 +356,14 @@ class GameFrame(wx.Frame):
 # ---------------------------------------------------------
 	def lineBroken(self):
 		"对面断线了。linebroken是要倒计时的！"
-		self.game.state = pb.State.BROKEN
+		self.game.broken = True
 		if self.isMyTurn():
 			self.myClockPane().paused()
 		self.startCountDown()
 
 	def comeback(self):
 		"收到comeback,意味着万事俱备，可以开始了"
-		if self.game.state == pb.State.BROKEN:
+		if self.game.broken = True:
 			self.stopCountDown()
 			self.game.state = pb.State.RUNNING
 			self.checkStart()
