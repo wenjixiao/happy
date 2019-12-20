@@ -1,7 +1,7 @@
 import wx
 import pb.msg_pb2 as pb
 # import logging
-from common import validatePoint
+from common import validatePoint,otherColor,parseStones
 from itertools import product
 
 class BoardPane(wx.Panel):
@@ -85,7 +85,8 @@ class BoardPane(wx.Panel):
 			dc.DrawCircle(self.user2dev(wx.Point(x,y)),3)
 
 		# draw stones
-		for stone in self.getStones():
+		liveStones,deadStones = parseStones(self.getStones())
+		for stone in liveStones:
 			color = wx.BLACK if stone.color == pb.Color.BLACK else wx.WHITE
 			dc.SetBrush(wx.Brush(color))
 			dc.DrawCircle(self.user2dev(wx.Point(stone.x,stone.y)),radius)

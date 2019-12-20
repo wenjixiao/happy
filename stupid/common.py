@@ -30,13 +30,13 @@ class Point:
 	def neighbors(self):
 		s = set()
 		if validate(self.x-1):
-			s.append(Point(self.x-1,self.y))
+			s.add(Point(self.x-1,self.y))
 		if validate(self.x+1):
-			s.append(Point(self.x+1,self.y))
+			s.add(Point(self.x+1,self.y))
 		if validate(self.y-1):
-			s.append(Point(self.x,self.y-1))
+			s.add(Point(self.x,self.y-1))
 		if validate(self.y+1):
-			s.append(Point(self.x,self.y+1))
+			s.add(Point(self.x,self.y+1))
 		return s
 
 class Block:
@@ -67,7 +67,7 @@ def moveLive2Dead(liveStones,deadStones):
 
 	# 所有是你颜色的点
 	yourPoints = []
-	for point,color in point2color:
+	for point,color in point2color.items():
 		if color == yourColor:
 			yourPoints.append(point)
 
@@ -75,14 +75,14 @@ def moveLive2Dead(liveStones,deadStones):
 	yourBlocks = []
 	for point in yourPoints:
 		addPointToBlocks(yourColor,point,yourBlocks)
-		
+
 	# 计算你每个block的气数
 	for block in yourBlocks:
 		if countGas(block,point2color) == 0:
 			for point in block.points:
 				# 这个操作手法有些变态，不过有用
 				stone = pb.Stone()
-				stone.color = color
+				stone.color = block.color
 				stone.x = point.x
 				stone.y = point.y
 
@@ -123,10 +123,9 @@ def countGas(block,point2color):
 		blockAndBorder = blockAndBorder | point.neighbors()
 
 	borderPoints = blockAndBorder - block.points
-	
 	occupy = 0
 	for point in borderPoints:
-		if point2color[point] != block.color:
+		if point in point2color and point2color[point] != block.color:
 			occupy += 1
 
 	return len(borderPoints) - occupy
