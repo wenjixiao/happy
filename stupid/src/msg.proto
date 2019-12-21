@@ -1,0 +1,217 @@
+syntax="proto3";
+
+package pb;
+
+enum Color {
+	WHITE = 0;
+	BLACK = 1;
+}
+
+enum WhoFirst {
+	YOU = 0;
+	ME = 1;
+	RANDOM = 2;
+}
+
+enum State {
+	PREPARE = 0;
+	RUNNING = 1;
+	PAUSED = 5;
+	ENDED = 4;
+}
+
+enum EndType {
+	COUNT = 0;
+	ADMIT = 1;
+	TIMEOUT = 2;
+	LINEBROKEN = 3;
+}
+
+//------------------------------------------------
+
+message Stone {
+	Color color = 1;
+	int32 x = 2;
+	int32 y = 3;
+	bool pass = 4;
+}
+
+message Result {
+	Color winner = 1;
+	EndType endType = 2;
+	float mount = 3;
+}
+
+message CountRequest {
+	int32 gid = 1;
+}
+
+message CountRequestAnswer {
+	int32 gid = 1;
+	bool agree = 2;
+}
+
+message GameOver {
+	int32 gid = 1;
+	Result result = 2;
+}
+
+message DoContinue {
+	int32 gid = 1;
+}
+
+message ClockNotify {
+	int32 gid = 1;
+	string pid = 2;
+	Clock clock = 3;
+}
+
+message LineBroken {
+	int32 gid = 1;
+}
+
+message Comeback {
+	int32 gid = 1;
+}
+
+//------------------------------------------------
+// when game state is *Counting* 
+
+message DeadStones {
+	int32 gid = 1;
+	bool addOrRemove = 2;
+	repeated Stone stones = 3;
+}
+
+message ConfirmDead {
+	int32 gid = 1;
+}
+
+message CountResult {
+	int32 gid = 1;
+	Result result = 2;
+	bool agree = 3;
+}
+
+//------------------------------------------------
+
+message Game {
+	int32 gid = 1;
+	int32 blackIndex = 7;
+	bool lineBroken = 10;
+	State state = 8;
+	repeated Stone stones = 2;
+	repeated Player players = 3;
+	repeated Player watchers = 4;
+	repeated Clock clocks = 5;
+	Proto proto = 6;
+	Result result = 9;
+}
+
+message Player {
+	string pid = 1;
+	string level = 2;
+	string passwd = 3;
+}
+
+message Clock {
+	int32 baoLiu = 1;
+	int32 ciShu = 2;
+	int32 duMiao = 3;
+}
+
+message Proto {
+	int32 rangZi = 1;
+	float tieMu = 2;
+	WhoFirst whoFirst = 3;
+	int32 baoLiu = 4;
+	int32 duMiao = 5;
+	int32 ciShu = 6;
+	int32 meiCi = 7;
+}
+
+//------------------------------------------------
+
+enum MsgType {
+	LOGIN = 0;
+	LOGOUT = 1;
+	HAND = 2;
+	DATA = 3;
+	LOGIN_OK = 4;
+	LOGIN_FAILED = 5;
+	INVITE = 6;
+	INVITE_ANSWER = 7;
+	GAME = 8;
+	COUNT_REQUEST = 9;
+	DEAD_STONES = 10;
+	COUNT_RESULT = 11;
+	GAME_OVER = 12;
+	COUNT_REQUEST_ANSWER = 13;
+	DO_CONTINUE = 14;
+	CLOCK_NOTIFY = 15;
+	LINE_BROKEN = 16;
+	COMEBACK = 19;
+	CONFIRM_DEAD = 20;
+}
+
+//------------------------------------------------
+
+message Msg{
+	MsgType type = 1;
+	oneof union {
+		Login login = 2;
+		Logout logout = 3;
+		Hand hand = 4;
+		Data data = 5;
+		LoginOk loginOk = 6;
+		LoginFailed loginFailed = 7;
+		Invite invite = 8;
+		InviteAnswer inviteAnswer = 9;
+		Game game = 10;
+		CountRequest countRequest = 11;
+		DeadStones deadStones = 12;
+		CountResult countResult = 13;
+		GameOver gameOver = 14;
+		CountRequestAnswer countRequestAnswer = 15;
+		DoContinue doContinue = 16;
+		ClockNotify clockNotify = 17;
+		LineBroken lineBroken = 18;
+		Comeback comeback = 21;
+		ConfirmDead confirmDead = 22;
+	}
+}
+
+message Login {
+	string pid = 1;
+	string passwd = 2;
+}
+
+message LoginOk {
+	Player player = 1;
+	Data data = 2;
+}
+
+message LoginFailed {}
+
+message Logout {}
+
+message Data {
+	repeated Player players = 1;
+	repeated Game games = 2;
+}
+
+message Hand {
+	int32 gid = 1;
+	Stone stone = 2;
+}
+
+message Invite {
+	string pid = 1;
+	Proto proto = 2;
+}
+
+message InviteAnswer {
+	bool agree = 1;
+	string pid = 2;
+	Proto proto = 3;
+}
