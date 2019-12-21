@@ -164,7 +164,7 @@ class GameFrame(wx.Frame):
 	COUNTING = 60*2
 
 	def __init__(self,parent,game):
-		super(GameFrame, self).__init__(parent, size=(400, 600))
+		super(GameFrame, self).__init__(parent, size=(600, 700))
 		self.game = game
 		self.deadStones = []
 		self.count = self.COUNTING
@@ -204,8 +204,26 @@ class GameFrame(wx.Frame):
 
 		# 设置turn颜色
 		for mypid,mycolorst in self.playersPane.pid2colorst.items():
-			mycolor = wx.RED if self.myPlayer().pid == mypid else wx.BLACK
-			mycolorst.SetForegroundColour(mycolor)
+			if mypid == self.getNextPid():
+				mycolorst.SetForegroundColour(wx.RED)
+			else:
+				mycolorst.SetForegroundColour(wx.BLACK)
+		# 不重画，改了也没用！妈的，感觉逻辑没错，运行时就是没反应，这个refresh太坑了！
+		self.playersPane.Refresh()
+
+	def getNextColor(self):
+		return self.boardPane.getNextColor()
+
+	def getNextPid(self):
+		for index,player in enumerate(self.game.players):
+			if index == self.game.blackIndex:
+				# 他是黑的，nextColor也是黑的，那么他就是下一个
+				if self.getNextColor() == pb.Color.BLACK:
+					return player.pid
+			else:
+				# white
+				if self.getNextColor() == pb.Color.WHITE:
+					return player.pid
 
 	def myClockPane(self):
 		return self.playersPane.pid2clockpane[self.myPlayer().pid]
@@ -220,7 +238,7 @@ class GameFrame(wx.Frame):
 		return self.GetParent().player
 
 	def isMyTurn(self):
-		return self.boardPane.getNextColor() == self.myColor()
+		return self.getNextColor() == self.myColor()
 
 	def sendMsg(self,msg):
 		self.GetParent().sendMsg(msg)
@@ -289,7 +307,7 @@ class GameFrame(wx.Frame):
 			self.sendMsg(msg)
 		else:
 			self.boardPane.addStone(stone)
-			self.checkStart()
+		self.checkStart()
 # ---------------------------------------------------------
 	def countRequest(self):
 		"对面发出的数子请求"
