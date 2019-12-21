@@ -197,7 +197,7 @@ func LineBroken(session *Session) {
 		Leave(session)
 
 		for _,game := range GetGamesByPid(player.Pid) {
-			game.Broken = true
+			game.LineBroken = true
 			msg := &pb.Msg{
 				Type: pb.MsgType_LINE_BROKEN,
 				Union: &pb.Msg_LineBroken{&pb.LineBroken{Gid: game.Gid}}}
@@ -306,16 +306,13 @@ func Dispatch() {
 
 				mypid := myOpSession.Session.Player.Pid
 				for _,game := range GetGamesByPid(mypid) {
-					if game.Broken {
-						ready := CanGameStart(game)
-						if ready {
-							game.State = pb.State_RUNNING
-						}
-
+					if game.LineBroken {
 						msg1 := &pb.Msg{Type: pb.MsgType_GAME, Union: &pb.Msg_Game{game}}
 						SendMessage(myOpSession.Session,msg1)
 
-						if ready {
+						if CanGameStart(game) {
+							// 都回来了
+							game.LineBroken = false
 							msg := &pb.Msg{
 								Type: pb.MsgType_COMEBACK,
 								Union: &pb.Msg_Comeback{&pb.Comeback{Gid: game.Gid}}}

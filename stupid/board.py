@@ -1,6 +1,5 @@
 import wx
 import pb.msg_pb2 as pb
-# import logging
 from common import validatePoint,otherColor,parseStones
 from itertools import product
 

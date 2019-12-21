@@ -9,22 +9,40 @@ class PlayersPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
 		super(PlayersPane,self).__init__(parent)
 		self.gameFrame = gameFrame
-		self.guide = {}
+		self.pid2clockpane = {}
+		self.pid2colorst = {}
 		# self.SetBackgroundColour(wx.BLUE)
 
 		grid = wx.GridBagSizer(3,2)
 
 		for col,(player,clock) in enumerate(zip(self.getGame().players,self.getGame().clocks)):
-			color = "(B)" if self.getGame().blackIndex == col else "(W)"
-			pidSt = wx.StaticText(self,label = self.getPidStr(player)+color)
+
+			pidPanel = wx.Panel(self)
+			hbox = wx.BoxSizer()
+
+			pidSt = wx.StaticText(pidPanel,label = self.getPidStr(player))
+			leftSt = wx.StaticText(pidPanel,label = "(")
+			color = 'B' if self.getGame().blackIndex == col else 'W'
+			colorSt = wx.StaticText(pidPanel,label = color)
+			rightSt = wx.StaticText(pidPanel,label = ")")
+
+			self.pid2colorst[player.pid] = colorSt
+
+			hbox.Add(pidSt)
+			hbox.Add(leftSt)
+			hbox.Add(colorSt)
+			hbox.Add(rightSt)
+
+			pidPanel.SetSizer(hbox)
+			
 			levelSt = wx.StaticText(self,label = self.getLevelStr(player))
 			clockPane = ClockPane(self,self.gameFrame,clock)
 
-			grid.Add(pidSt,pos=(0,col),flag=wx.ALIGN_CENTER)
+			grid.Add(pidPanel,pos=(0,col),flag=wx.ALIGN_CENTER)
 			grid.Add(levelSt,pos=(1,col),flag=wx.ALIGN_CENTER)
 			grid.Add(clockPane,pos=(2,col),flag=wx.EXPAND)
 
-			self.guide[player.pid] = clockPane
+			self.pid2clockpane[player.pid] = clockPane
 
 		# fuck! I always forget set the grid's growable property
 		grid.AddGrowableCol(0)
@@ -42,7 +60,7 @@ class PlayersPane(wx.Panel):
 		return str(player.level)
 
 	def setClock(self,pid,clock):
-		self.guide[pid].setClock(clock)
+		self.pid2clockpane[pid].setClock(clock)
 
 
 class ClockPane(wx.Panel):
@@ -174,17 +192,26 @@ class GameFrame(wx.Frame):
 # ---------------------------------------------------------
 	def checkStart(self):
 		"所谓start，要么启动时钟，要么启动倒数！"
-		if self.game.state == pb.State.RUNNING and self.isMyTurn():
+		if self.game.state == pb.State.RUNNING and not self.game.lineBroken and self.isMyTurn():
 			self.myClockPane().start()
+
 		# 断线重连后，会得到一个game，但是此时未必可以开始，要看game.state是不是running。
 		# 如果是broken，那么说明还没有到可以运行的条件。
 		# 此时，需要启动倒数。
 		# 如果两个人都断线了，就算了；一个人断线，就不能让另一个人等太久！
-		if self.game.broken:
+		if self.game.lineBroken:
 			self.startCountDown()
 
+		# 设置turn颜色
+		for mypid,mycolorst in self.playersPane.pid2colorst.items():
+			mycolor = wx.RED if self.myPlayer().pid == mypid else wx.BLACK
+			mycolorst.SetForegroundColour(mycolor)
+
 	def myClockPane(self):
-		return self.playersPane.guide[self.myPlayer().pid]
+		return self.playersPane.pid2clockpane[self.myPlayer().pid]
+
+	def myColorSt(self):
+		return self.playersPane.pid2colorst[self.myPlayer().pid]
 
 	def myColor(self):
 		return pb.Color.BLACK if self.game.players[self.game.blackIndex] == self.myPlayer() else pb.Color.WHITE
@@ -356,16 +383,16 @@ class GameFrame(wx.Frame):
 # ---------------------------------------------------------
 	def lineBroken(self):
 		"对面断线了。linebroken是要倒计时的！"
-		self.game.broken = True
+		self.game.lineBroken = True
 		if self.isMyTurn():
 			self.myClockPane().paused()
 		self.startCountDown()
 
 	def comeback(self):
 		"收到comeback,意味着万事俱备，可以开始了"
-		if self.game.broken = True:
+		if self.game.lineBroken == True:
 			self.stopCountDown()
-			self.game.state = pb.State.RUNNING
+			self.game.lineBroken = False
 			self.checkStart()
 # ---------------------------------------------------------
 	def doPaused(self):
