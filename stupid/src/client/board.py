@@ -107,14 +107,26 @@ class BoardPane(wx.Panel):
 				if len(numsXY) == 0:
 					return (0,0,False)
 
-				drawLine = True
+				hasOtherColor = False
+				last = None
 				for i in numsXY:
 					x,y = (i,stone.y) if directXY else (stone.x,i)
 					theStone = getStoneAt(x,y)
-					if theStone and theStone.color != stone.color:
-						drawLine = False
-						break
-				return (i,stone.y,drawLine) if directXY else (stone.x,i,drawLine)
+					# thePoint = (i,stone.y) if directXY else (stone.x,i)
+					if theStone:
+						if theStone.color == stone.color:
+							last = theStone
+						else:
+							hasOtherColor = True
+							break
+
+				drawLine = False if hasOtherColor and not last else True
+
+				if hasOtherColor and last:
+					return (last.x,stone.y,drawLine) if directXY else (stone.x,last.y,drawLine)
+				else:
+					return (i,stone.y,drawLine) if directXY else (stone.x,i,drawLine)
+
 # ---------------------------------------------------------
 			for stone in liveStones:
 				t1 = endPoint(stone,True,False)
@@ -125,10 +137,12 @@ class BoardPane(wx.Panel):
 				for x,y,drawLine in [t1,t2,t3,t4]:
 					if drawLine:
 						if stone.color == pb.Color.BLACK:
-							dc.SetPen(wx.RED)
+							# ORANGE
+							dc.SetPen(wx.Pen('#CC3232', 2, wx.SOLID))
 						if stone.color == pb.Color.WHITE:
-							dc.SetPen(wx.GREEN)
-						dc.DrawLine(stone.x,stone.y,x,y)
+							# FOREST GREEN
+							dc.SetPen(wx.Pen('#238E23', 2, wx.SOLID))
+						dc.DrawLine(self.user2dev(wx.Point(stone.x,stone.y)),self.user2dev(wx.Point(x,y)))
 
 # ---------------------------------------------------------
 	def addStone(self,stone):
