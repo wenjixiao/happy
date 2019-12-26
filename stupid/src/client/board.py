@@ -8,6 +8,7 @@ class BoardPane(wx.Panel):
 		super(BoardPane,self).__init__(parent)
 		# self.SetBackgroundColour("#FFC0CB")
 		self.gameFrame = gameFrame
+		self.analyze = True
 
 		self.Bind(wx.EVT_PAINT,self.OnPaint)
 		self.Bind(wx.EVT_SIZE,self.OnSize)
@@ -90,6 +91,46 @@ class BoardPane(wx.Panel):
 			dc.SetBrush(wx.Brush(color))
 			dc.DrawCircle(self.user2dev(wx.Point(stone.x,stone.y)),radius)
 
+		# analyze
+		if self.analyze:
+# ---------------------------------------------------------
+			def getStoneAt(x,y):
+				for stone in liveStones:
+					if stone.x == x and stone.y == y:
+						return stone
+				return None
+
+			def endPoint(stone,directXY,isAscend):
+				initXY = stone.x if directXY else stone.y
+				numsXY = range(initXY+1,10,1) if isAscend else range(initXY-1,-10,-1)
+
+				if len(numsXY) == 0:
+					return (0,0,False)
+
+				drawLine = True
+				for i in numsXY:
+					x,y = (i,stone.y) if directXY else (stone.x,i)
+					theStone = getStoneAt(x,y)
+					if theStone and theStone.color != stone.color:
+						drawLine = False
+						break
+				return (i,stone.y,drawLine) if directXY else (stone.x,i,drawLine)
+# ---------------------------------------------------------
+			for stone in liveStones:
+				t1 = endPoint(stone,True,False)
+				t2 = endPoint(stone,True,True)
+				t3 = endPoint(stone,False,False)
+				t4 = endPoint(stone,False,True)
+
+				for x,y,drawLine in [t1,t2,t3,t4]:
+					if drawLine:
+						if stone.color == pb.Color.BLACK:
+							dc.SetPen(wx.RED)
+						if stone.color == pb.Color.WHITE:
+							dc.SetPen(wx.GREEN)
+						dc.DrawLine(stone.x,stone.y,x,y)
+
+# ---------------------------------------------------------
 	def addStone(self,stone):
 		self.getStones().append(stone)
 		self.Refresh()
