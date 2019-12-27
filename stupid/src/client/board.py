@@ -1,7 +1,7 @@
 import wx
 import pb.msg_pb2 as pb
 from common import validatePoint,otherColor,parseStones,Point
-from itertools import product
+import itertools
 
 class BoardPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
@@ -80,7 +80,7 @@ class BoardPane(wx.Panel):
 			dc.DrawLine(self.user2dev(wx.Point(i,-9)),self.user2dev(wx.Point(i,9)))
 
 		# draw 9 stars
-		for (x,y) in product([-6,0,6],repeat=2):
+		for (x,y) in itertools.product([-6,0,6],repeat=2):
 			dc.SetBrush(wx.Brush("#FF7F00"))
 			dc.DrawCircle(self.user2dev(wx.Point(x,y)),3)
 
@@ -148,12 +148,17 @@ class BoardPane(wx.Panel):
 				t3 = selectPoints(getPoints(stone,False,False))
 				t4 = selectPoints(getPoints(stone,False,True))
 
-				for t in [t1,t2,t3,t4]:
-					for x,y,hasStone,color in t:
-						self.color2points[stone.color].add(Point(x,y))
-						mycolor = '#CC7F32' if stone.color == pb.Color.BLACK else '#238E23'
-						dc.SetBrush(wx.Brush(mycolor))
-						dc.DrawCircle(self.user2dev(wx.Point(x,y)),3)
+				for x,y,hasStone,color in itertools.chain(t1,t2,t3,t4):
+					self.color2points[stone.color].add(Point(x,y))
+
+					mycolor = '#CC7F32' if stone.color == pb.Color.BLACK else '#238E23'
+					dc.SetBrush(wx.Brush(mycolor))
+					dc.DrawCircle(self.user2dev(wx.Point(x,y)),3)
+
+			sharePoints = self.color2points[pb.Color.BLACK] & self.color2points[pb.Color.WHITE]
+			for p in sharePoints:
+				dc.SetBrush(wx.Brush('#B000FF'))
+				dc.DrawCircle(self.user2dev(wx.Point(p.x,p.y)),3)
 # ---------------------------------------------------------
 	def addStone(self,stone):
 		self.getStones().append(stone)
@@ -173,8 +178,12 @@ class BoardPane(wx.Panel):
 			return otherColor(lastStone.color)
 
 	def getColorCount(self):
-		"b:33,w:22"
-		return "B:"+str(len(self.color2points[pb.Color.BLACK]))+",W:"+str(len(self.color2points[pb.Color.WHITE]))
+		"b:33,w:22,share:3"
+		b = "B:" + str(len(self.color2points[pb.Color.BLACK]))
+		w = "W:" + str(len(self.color2points[pb.Color.WHITE]))
+		sharePoints = self.color2points[pb.Color.BLACK] & self.color2points[pb.Color.WHITE]
+		share = "share:" + str(len(sharePoints))
+		return ','.join([b,w,share])
 
 # ---------------------------------------------------------
 class MainFrame(wx.Frame):
