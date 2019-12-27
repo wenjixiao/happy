@@ -1,6 +1,6 @@
 import wx
 import pb.msg_pb2 as pb
-from common import validatePoint,otherColor,parseStones
+from common import validatePoint,otherColor,parseStones,Point
 from itertools import product
 
 class BoardPane(wx.Panel):
@@ -9,7 +9,7 @@ class BoardPane(wx.Panel):
 		# self.SetBackgroundColour("#FFC0CB")
 		self.gameFrame = gameFrame
 		self.analyze = True
-
+		self.color2points = None
 		self.Bind(wx.EVT_PAINT,self.OnPaint)
 		self.Bind(wx.EVT_SIZE,self.OnSize)
 		self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
@@ -100,50 +100,60 @@ class BoardPane(wx.Panel):
 						return stone
 				return None
 
-			def endPoint(stone,directXY,isAscend):
+			def getPoints(stone,directXY,isAscend):
+				"return [(x,y,hasStone,color),...]"
+				points = [(stone.x,stone.y,True,stone.color)]
+
 				initXY = stone.x if directXY else stone.y
 				numsXY = range(initXY+1,10,1) if isAscend else range(initXY-1,-10,-1)
 
 				if len(numsXY) == 0:
-					return (0,0,False)
+					return points
 
-				hasOtherColor = False
-				last = None
 				for i in numsXY:
 					x,y = (i,stone.y) if directXY else (stone.x,i)
 					theStone = getStoneAt(x,y)
-					# thePoint = (i,stone.y) if directXY else (stone.x,i)
 					if theStone:
-						if theStone.color == stone.color:
-							last = theStone
+						tp = (x,y,True,theStone.color)
+					else:
+						tp = (x,y,False,0)
+					points.append(tp)
+				return points
+
+			def selectPoints(points):
+				origin = points[0]
+
+				my = []
+				other = []
+				for i,t in enumerate(points):
+					if t[2]:
+						if t[3] != origin[3]:
+							other.append(i)
 						else:
-							hasOtherColor = True
-							break
+							my.append(i)
 
-				drawLine = False if hasOtherColor and not last else True
-
-				if hasOtherColor and last:
-					return (last.x,stone.y,drawLine) if directXY else (stone.x,last.y,drawLine)
+				if len(other) == 0:
+					return points
 				else:
-					return (i,stone.y,drawLine) if directXY else (stone.x,i,drawLine)
-
+					otherFirst = other[0]
+					my1 = list(filter(lambda i: i < otherFirst,my))
+					lastIndex = my1[-1]
+					return points[:lastIndex+1]
 # ---------------------------------------------------------
+			self.color2points={pb.Color.BLACK:set(),pb.Color.WHITE:set()}
+
 			for stone in liveStones:
-				t1 = endPoint(stone,True,False)
-				t2 = endPoint(stone,True,True)
-				t3 = endPoint(stone,False,False)
-				t4 = endPoint(stone,False,True)
+				t1 = selectPoints(getPoints(stone,True,False))
+				t2 = selectPoints(getPoints(stone,True,True))
+				t3 = selectPoints(getPoints(stone,False,False))
+				t4 = selectPoints(getPoints(stone,False,True))
 
-				for x,y,drawLine in [t1,t2,t3,t4]:
-					if drawLine:
-						if stone.color == pb.Color.BLACK:
-							# ORANGE
-							dc.SetPen(wx.Pen('#CC3232', 2, wx.SOLID))
-						if stone.color == pb.Color.WHITE:
-							# FOREST GREEN
-							dc.SetPen(wx.Pen('#238E23', 2, wx.SOLID))
-						dc.DrawLine(self.user2dev(wx.Point(stone.x,stone.y)),self.user2dev(wx.Point(x,y)))
-
+				for t in [t1,t2,t3,t4]:
+					for x,y,hasStone,color in t:
+						self.color2points[stone.color].add(Point(x,y))
+						mycolor = '#CC7F32' if stone.color == pb.Color.BLACK else '#238E23'
+						dc.SetBrush(wx.Brush(mycolor))
+						dc.DrawCircle(self.user2dev(wx.Point(x,y)),3)
 # ---------------------------------------------------------
 	def addStone(self,stone):
 		self.getStones().append(stone)
@@ -161,6 +171,10 @@ class BoardPane(wx.Panel):
 		else:
 			lastStone = stones[c-1]
 			return otherColor(lastStone.color)
+
+	def getColorCount(self):
+		"b:33,w:22"
+		return "B:"+str(len(self.color2points[pb.Color.BLACK]))+",W:"+str(len(self.color2points[pb.Color.WHITE]))
 
 # ---------------------------------------------------------
 class MainFrame(wx.Frame):
