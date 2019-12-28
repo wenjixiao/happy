@@ -1,0 +1,13 @@
+syntax="proto3";
+
+enum Color {
+	WHITE = 0;
+	BLACK = 1;
+}
+
+message Stone {
+	Color color = 1;
+	int32 x = 2;
+	int32 y = 3;
+	bool isPass = 4;
+}

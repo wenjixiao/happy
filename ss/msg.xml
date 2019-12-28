@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<msg
+	xmlns="http://www.wenjixiao.com.cn"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.wenjixiao.com.cn msg.xsd">
+</msg>
+<msg>
+	<login>
+		<pid>wen</pid>
+		<passwd>123</passwd>
+	</login>
+</msg>
+
+<msg>
+	<stone>
+		<x>1</x>
+		<y>2</y>
+		<color>black</color>
+		<isPass>false</isPass>
+	</stone>
+</msg>
+
+<msg>
+	<players>
+		<player>
+			<pid>wen</pid>
+			<level>3d</level>
+		</player>
+		<player>
+			<pid>zhong</pid>
+			<level>18k</level>
+		</player>
+	</players>
+</msg>
+
+<msg>
+	<game>
+		<gid>3</gid>
+		<blackIndex>1</blackIndex>
+		<lineBroken>true</lineBroken>
+		<state>1</state>
+		<proto>
+			<rangeZi>0</rangeZi>
+			<tieMu>7</tieMu>
+			<whoFrist>1</whoFrist>
+			<clockDefine>
+				<baoLiu>1200</baoLiu>
+				<ciShu>3</ciShu>
+				<duMiao>30</duMiao>
+				<meiCi>60</meiCi>
+			</clockDefine>
+		</proto>
+		<players>
+			<player>
+				<pid>wen</pid>
+				<level>3d</level>
+			</player>
+			<player>
+				<pid>zhong</pid>
+				<level>18k</level>
+			</player>
+		</players>
+		<clocks>
+			<clock>
+				<baoLiu>1200</baoLiu>
+				<ciShu>3</ciShu>
+				<duMiao>30</duMiao>
+			</clock>
+			<clock>
+				<baoLiu>1200</baoLiu>
+				<ciShu>3</ciShu>
+				<duMiao>30</duMiao>
+			</clock>
+		</clocks>
+		<stones>
+			<stone>
+				<x>1</x>
+				<y>2</y>
+				<color>black</color>
+				<isPass>false</isPass>
+			</stone>
+		</stones>
+	</game>
+</msg>

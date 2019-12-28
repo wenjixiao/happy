@@ -2,6 +2,7 @@ from socket import *
 from msg_util import *
 from queue import Queue
 from threading import Thread
+import msg_pb2 as pb
 
 def readingMsg(sock,msgs):
 	try:
@@ -11,6 +12,8 @@ def readingMsg(sock,msgs):
 		print(e)
 
 def letsCmd():
+	'''
+	'''
 	msgs = Queue()
 
 	addr = ('localhost',20000)
@@ -27,9 +30,14 @@ def letsCmd():
 				sock.shutdown(SHUT_RDWR)
 				break
 
-			elif cmd == "send":
-				p = {'name':'wenjixiao','age':20}
-				writeMsg(sock,p)
+			elif cmd == "stone":
+				stone = pb.Stone()
+				stone.x = 1
+				stone.y = 2
+				stone.color = pb.Color.BLACK
+				print(stone)
+				writeMsg(sock,stone)
+				print("stone sended")
 
 			elif cmd == "get":
 				while not msgs.empty():

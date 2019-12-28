@@ -1,5 +1,6 @@
 import json
 import struct
+import msg_pb2 as pb
 
 HeadSize = 4
 
@@ -7,11 +8,19 @@ def addHeader(bin):
 	header = struct.pack('I',len(bin))
 	return header+bin
 
-def decodeMsg(bin):
-	return json.loads(bin.decode())
+# def decodeMsg(bin):
+# 	return json.loads(bin.decode())
 
-def encodeMsg(msg):
-	return json.dumps(msg).encode()
+# def encodeMsg(msg):
+# 	return json.dumps(msg).encode()
+
+def decodeMsg(bin):
+	stone = pb.Stone()
+	stone.ParseFromString(bin)
+	return stone
+
+def encodeMsg(stone):
+	return stone.SerializeToString()
 
 def readMsg(sock):
 	"maybe *BLOCK*,when sock recv no data"
@@ -33,5 +42,5 @@ def readMsg(sock):
 			buf = buf[HeadSize+bodySize:]
 
 def writeMsg(sock,msg):
-	sock.send(addHeader(encodeMsg(msg)))
+	sock.sendall(addHeader(encodeMsg(msg)))
 

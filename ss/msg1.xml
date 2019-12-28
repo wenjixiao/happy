@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<msg
+	xmlns="http://www.wenjixiao.com.cn"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.wenjixiao.com.cn msg.xsd">
+	<stone x="1" y="2" color="black" isPass="false"/>
+</msg>

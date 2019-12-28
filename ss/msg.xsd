@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	targetNamespace="http://www.wenjixiao.com.cn"
+	xmlns="http://www.wenjixiao.com.cn"
+	elementFormDefault="qualified">
+	<xs:element name="msg">
+		<xs:complexType>
+			<xs:choice>
+
+				<xs:element name="login">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="pid" type="xs:string"/>
+							<xs:element name="passwd" type="xs:string"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+
+				<xs:element name="stone">
+					<xs:simpleType>
+						<xs:simpleType name="my99">
+							<xs:restriction base="xs:integer">
+								<xs:minInclusive value="-9"/>
+								<xs:maxInclusive value="9"/>
+							</xs:restriction>
+						</xs:simpleType>
+
+						<xs:attribute name="x" type="my99"/>
+						<xs:attribute name="y" type="my99"/>
+						<xs:attribute name="color" type="xs:integer">
+							<xs:restriction base="xs:string">
+								<xs:enumeration value="black"/>
+								<xs:enumeration value="white"/>
+							</xs:restriction>
+						</xs:attribute>
+						<xs:attribute name="isPass" type="xs:boolean" minOccurs="0"/>
+					</xs:simpleType>
+				</xs:element>
+
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -4,7 +4,6 @@ from socket import *
 
 def processMsg(sock,msg):
 	print(msg)
-	msg['age']+=1
 	writeMsg(sock,msg)
 
 def listen():
