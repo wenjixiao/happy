@@ -14,15 +14,17 @@ def listen():
 		servSock.bind(addr)
 		servSock.listen(5)
 
-		try:
-			while True:
-				cliSock,addr = servSock.accept()
-				print('Got connection from', addr)
+		while True:
+			cliSock,addr = servSock.accept()
+			print('Got connection from', addr)
+			try:
 				for msg in readMsg(cliSock):
 					processMsg(cliSock,msg)
 				print("----exit normal----")
-		finally:
-			cliSock.close()
+			except Exception as e:
+				print(e)
+			finally:
+				cliSock.close()
 	finally:
 		servSock.close()
 
