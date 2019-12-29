@@ -156,12 +156,10 @@ class BasicClient(wx.Frame):
 		elif msg.type == pb.MsgType.COMEBACK:
 			self.withGameFrame(msg.comeback.gid,lambda gf: gf.comeback())
 
-		elif msg.type == pb.MsgType.DEAD_STONES:
-			ds = msg.deadStones
-			self.withGameFrame(ds.gid,lambda gf: gf.deadStones(ds.addOrRemove,ds.stones))
+		elif msg.type == pb.MsgType.WILL_DEAD_STONE:
+			ds = msg.willDeadStone
+			self.withGameFrame(ds.gid,lambda gf: gf.willDeadStone(ds.addOrRemove,ds.stone))
 
-		elif msg.type == pb.MsgType.CONFIRM_DEAD:
-			self.withGameFrame(msg.confirmDead.gid,lambda gf: gf.confirmDead())
 # ---------------------------------------------------------
 	def withGameFrame(self,gid,myfun):
 		"这个是调用某个gameframe方法的快捷方式"

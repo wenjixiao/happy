@@ -166,7 +166,6 @@ class GameFrame(wx.Frame):
 	def __init__(self,parent,game):
 		super(GameFrame, self).__init__(parent, size=(600, 700))
 		self.game = game
-		self.deadStones = []
 		self.count = self.COUNTING
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 
@@ -279,6 +278,9 @@ class GameFrame(wx.Frame):
 		elif cmd == "myturn":
 			logging.info(self.isMyTurn())
 
+		elif cmd == "how":
+			logging.info(self.boardPane.getColorCount())
+
 # ---------------------------------------------------------			
 	def startCountDown(self):
 		if not self.countTimer.IsRunning():
@@ -307,6 +309,7 @@ class GameFrame(wx.Frame):
 			self.sendMsg(msg)
 		else:
 			self.boardPane.addStone(stone)
+		# checkStart 是没副作用的
 		self.checkStart()
 # ---------------------------------------------------------
 	def countRequest(self):
@@ -325,21 +328,14 @@ class GameFrame(wx.Frame):
 
 		if isAgree:
 			self.doPaused()
-			self.selectDeadStones()
+			# change to select mode to select will dead stones
+			self.boardPane.selectMode()
 
-	def selectDeadStones(self):
-		"我要选死子了"
-		logging.info("selectDeadStones invoked")
-
-	def deadStones(self,addOrRemove,stones):
+	def willDeadStone(self,addOrRemove,stone):
 		"对面选了死子，或者选错取消某些死子"
-		if addOrRemove:
-			self.deadStones.extend(stones)
-		else:
-			for stone in stones:
-				self.deadStones.remove(stone)
+		self.boardPane.willDeadStone(addOrRemove,stone)
 
-	def confirmDead(self):
+	def sendCountResult(self):
 		"死的都选完了，可以结算了"
 		gameResult = pb.Result()
 		gameResult.endType = pb.EndType.COUNT
@@ -359,6 +355,8 @@ class GameFrame(wx.Frame):
 		self.sendMsg(msg)
 
 	def computePoints(self):
+		# @todo 我还没有想到一个比较好的形势判断的方法，这个是真的麻烦！
+
 		return (pb.Color.BLACK,1.5)
 
 # ---------------------------------------------------------

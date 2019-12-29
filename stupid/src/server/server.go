@@ -74,15 +74,10 @@ type MyGameOver struct {
 	GameOver *pb.GameOver
 }
 
-type MyDeadStones struct {
+type MyWillDeadStone struct {
 	WithSession
-	DeadStones *pb.DeadStones
+	WillDeadStone *pb.WillDeadStone
 } 
-
-type MyConfirmDead struct {
-	WithSession
-	ConfirmDead *pb.ConfirmDead
-}
 
 // ------------------------------------------------------------
 
@@ -95,8 +90,7 @@ var myInviteChan chan *MyInvite
 var myInviteAnswerChan chan *MyInviteAnswer
 var myHandChan chan *MyHand
 var myClockNotifyChan chan *MyClockNotify
-var myDeadStonesChan chan *MyDeadStones
-var myConfirmDeadChan chan *MyConfirmDead
+var myWillDeadStoneChan chan *MyWillDeadStone
 var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
 var myCountResultChan chan *MyCountResult
@@ -117,10 +111,9 @@ func Init(){
 	myInviteAnswerChan = make(chan *MyInviteAnswer,ChanBuf)
 	myHandChan = make(chan *MyHand,ChanBuf)
 	myClockNotifyChan = make(chan *MyClockNotify,ChanBuf)
-	myDeadStonesChan = make(chan *MyDeadStones,ChanBuf)
-	myConfirmDeadChan = make(chan *MyConfirmDead,ChanBuf)
 	myCountRequestChan = make(chan *MyCountRequest,ChanBuf)
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
+	myWillDeadStoneChan = make(chan *MyWillDeadStone,ChanBuf)
 	myCountResultChan = make(chan *MyCountResult,ChanBuf)
 	myGameOverChan = make(chan *MyGameOver,ChanBuf)
 
@@ -404,18 +397,12 @@ func Dispatch() {
 				SendToOtherPlayer(game,fromSession,msg)
 			}
 
-		case myDeadStones := <-myDeadStonesChan:
-			fromSession := myDeadStones.Session
-			deadStones := myDeadStones.DeadStones
-			if game,ok := GetGame(deadStones.Gid); ok {
-				msg := &pb.Msg{Type: pb.MsgType_DEAD_STONES, Union: &pb.Msg_DeadStones{deadStones}}
+		case myWillDeadStone := <-myWillDeadStoneChan:
+			fromSession := myWillDeadStone.Session
+			willDeadStone := myWillDeadStone.WillDeadStone
+			if game,ok := GetGame(willDeadStone.Gid); ok {
+				msg := &pb.Msg{Type: pb.MsgType_WILL_DEAD_STONE, Union: &pb.Msg_WillDeadStone{willDeadStone}}
 				SendToOtherPlayer(game,fromSession,msg)
-			}
-
-		case myConfirmDead := <-myConfirmDeadChan:
-			if game,ok := GetGame(myConfirmDead.ConfirmDead.Gid); ok {
-				msg := &pb.Msg{Type: pb.MsgType_CONFIRM_DEAD, Union: &pb.Msg_ConfirmDead{myConfirmDead.ConfirmDead}}
-				SendToOtherPlayer(game,myConfirmDead.Session,msg)
 			}
 
 		case myCountRequest := <-myCountRequestChan:
@@ -480,16 +467,6 @@ func AgreeCountResults(theCountResults []*pb.CountResult,gid int32) (agree int,a
 			if countResult.Agree {
 				agree += 1
 			}
-		}
-	}
-	return
-}
-
-func GetDeadStones(theDeadStones []*pb.DeadStones,gid int32) (stones []*pb.Stone,count int) {
-	for _,deadStones := range theDeadStones {
-		if deadStones.Gid == gid {
-			count += 1
-			stones = append(stones,deadStones.Stones...)
 		}
 	}
 	return
@@ -561,11 +538,8 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 	case pb.MsgType_GAME_OVER:
 		myGameOverChan <- &MyGameOver{WithSession{session},msg.GetGameOver()}
 
-	case pb.MsgType_DEAD_STONES:
-		myDeadStonesChan <- &MyDeadStones{WithSession{session},msg.GetDeadStones()}
-
-	case pb.MsgType_CONFIRM_DEAD:
-		myConfirmDeadChan <- &MyConfirmDead{WithSession{session},msg.GetConfirmDead()}
+	case pb.MsgType_WILL_DEAD_STONE:
+		myWillDeadStoneChan <- &MyWillDeadStone{WithSession{session},msg.GetWillDeadStone()}
 
 	case pb.MsgType_COUNT_RESULT:
 		myCountResultChan <- &MyCountResult{msg.GetCountResult()}
