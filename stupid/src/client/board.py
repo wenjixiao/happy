@@ -14,7 +14,7 @@ class BoardPane(wx.Panel):
 		self.Bind(wx.EVT_PAINT,self.OnPaint)
 		self.Bind(wx.EVT_SIZE,self.OnSize)
 		self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
-
+# ---------------------------------------------------------
 	def getGame(self):
 		return self.gameFrame.game
 
@@ -73,7 +73,7 @@ class BoardPane(wx.Panel):
 				stone = self.getStoneAt(liveStones,userPoint.x,userPoint.y)
 				if stone:
 					addOrRemove = stone not in self.willDeadStones
-					self.gotWillDeadStone(addOrRemove,stone)
+					self.willDeadStone(addOrRemove,stone)
 					self.gameFrame.sendWillDeadStone(stone,addOrRemove)
 			else:
 				if self.gameFrame.myClockPane().isRunning():
@@ -83,7 +83,7 @@ class BoardPane(wx.Panel):
 					stone.y = userPoint.y
 					self.gameFrame.putStone(stone)
 
-	def gotWillDeadStone(self,addOrRemove,stone):
+	def willDeadStone(self,addOrRemove,stone):
 		if addOrRemove:
 			self.willDeadStones.append(stone)
 		else:
@@ -141,14 +141,6 @@ class BoardPane(wx.Panel):
 			if stone.x == x and stone.y == y:
 				return stone
 		return None
-
-	def willDeadStone(self,addOrRemove,stone):
-		if addOrRemove:
-			self.willDeadStones.append(stone)
-		else:
-			self.willDeadStones.remove(stone)
-
-		self.Refresh()
 
 	def getColorPoints(self):
 		color2points={pb.Color.BLACK:set(),pb.Color.WHITE:set()}
@@ -208,7 +200,6 @@ class BoardPane(wx.Panel):
 		for stone in self.willDeadStones:
 			dc.SetPen(wx.Pen('#FF0000'))
 			dc.DrawCircle(self.user2dev(wx.Point(stone.x,stone.y)),int(radius/2))
-
 # ---------------------------------------------------------
 		# analyze
 		if self.analyze:

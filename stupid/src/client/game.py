@@ -275,10 +275,7 @@ class GameFrame(wx.Frame):
 			msg.countRequest.gid = self.game.gid
 			self.sendMsg(msg)
 
-		elif cmd == "myturn":
-			logging.info(self.isMyTurn())
-
-		elif cmd == "sendCountResult":
+		elif cmd == "result":
 			# logging.info(self.boardPane.getColorCount())
 			self.sendCountResult()
 
@@ -321,11 +318,11 @@ class GameFrame(wx.Frame):
 
 		isAgree = True if result == wx.ID_YES else False
 
-		msg1 = pb.Msg()
-		msg1.type = pb.MsgType.COUNT_REQUEST_ANSWER
-		msg1.countRequestAnswer.gid = self.game.gid
-		msg1.countRequestAnswer.agree = isAgree
-		self.sendMsg(msg1)
+		msg = pb.Msg()
+		msg.type = pb.MsgType.COUNT_REQUEST_ANSWER
+		msg.countRequestAnswer.gid = self.game.gid
+		msg.countRequestAnswer.agree = isAgree
+		self.sendMsg(msg)
 
 		if isAgree:
 			self.doPaused()
@@ -337,8 +334,8 @@ class GameFrame(wx.Frame):
 		gameResult = pb.Result()
 		gameResult.endType = pb.EndType.COUNT
 		gameResult.winner,gameResult.mount = self.computePoints()
-		# 弹出对话框，问一下是否同意结果。发消息给对面，以确定下一步。
 
+		# 弹出对话框，问一下是否同意结果。发消息给对面，以确定下一步。
 		words = "color:"+str(gameResult.winner)+",mount:"+str(gameResult.mount)
 		dialog = wx.MessageDialog(self, words, 'Agree?', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 		result = dialog.ShowModal()
@@ -352,7 +349,7 @@ class GameFrame(wx.Frame):
 		self.sendMsg(msg)
 
 	def computePoints(self):
-		# @todo 我还没有想到一个比较好的形势判断的方法，这个是真的麻烦！
+		"最简单版本，没办法，就这样吧，我也写不出更复杂的了"
 		color2points = self.boardPane.getColorPoints()
 		b = len(color2points[pb.Color.BLACK])
 		w = len(color2points[pb.Color.WHITE])
