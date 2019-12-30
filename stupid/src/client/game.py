@@ -381,6 +381,14 @@ class GameFrame(wx.Frame):
 		else:
 			self.countOverflow()
 
+	def sendWillDeadStone(self,mystone,myaddOrRemove):
+		msg = pb.Msg()
+		msg.type = pb.MsgType.WILL_DEAD_STONE
+		msg.willDeadStone.gid = self.game.gid
+		msg.willDeadStone.addOrRemove = myaddOrRemove
+		msg.willDeadStone.stone.CopyFrom(mystone)
+		self.sendMsg(msg)
+
 	def countOverflow(self):
 		"对面超时了"
 		self.stopCountDown()

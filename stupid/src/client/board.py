@@ -72,11 +72,9 @@ class BoardPane(wx.Panel):
 				liveStones,_ = parseStones(self.getStones())
 				stone = self.getStoneAt(liveStones,userPoint.x,userPoint.y)
 				if stone:
-					if stone not in self.willDeadStones:
-						self.willDeadStones.append(stone)
-					else:
-						self.willDeadStones.remove(stone)
-					self.Refresh()
+					addOrRemove = stone not in self.willDeadStones
+					self.gotWillDeadStone(addOrRemove,stone)
+					self.gameFrame.sendWillDeadStone(stone,addOrRemove)
 			else:
 				if self.gameFrame.myClockPane().isRunning():
 					stone = pb.Stone()
@@ -84,6 +82,13 @@ class BoardPane(wx.Panel):
 					stone.x = userPoint.x
 					stone.y = userPoint.y
 					self.gameFrame.putStone(stone)
+
+	def gotWillDeadStone(self,addOrRemove,stone):
+		if addOrRemove:
+			self.willDeadStones.append(stone)
+		else:
+			self.willDeadStones.remove(stone)
+		self.Refresh()
 # ---------------------------------------------------------
 	def selectPoints(self,points):
 		origin = points[0]
