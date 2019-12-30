@@ -139,7 +139,7 @@ class BasicClient(wx.Frame):
 			cra = msg.countRequestAnswer
 			def myfun(gf):
 				if cra.agree:
-					gf.boardPane.toSelectMode()
+					gf.boardPane.setSelectMode(True)
 				else:
 					gf.doContinue()
 			self.withGameFrame(cra.gid,myfun)

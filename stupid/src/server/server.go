@@ -69,6 +69,10 @@ type MyCountResult struct {
 	CountResult *pb.CountResult
 }
 
+type MyCancel struct {
+	Cancel * pb.Cancel
+}
+
 type MyGameOver struct {
 	WithSession
 	GameOver *pb.GameOver
@@ -94,6 +98,7 @@ var myWillDeadStoneChan chan *MyWillDeadStone
 var myCountRequestChan chan *MyCountRequest
 var myCountRequestAnswerChan chan *MyCountRequestAnswer
 var myCountResultChan chan *MyCountResult
+var myCancelChan chan *MyCancel
 var myGameOverChan chan *MyGameOver
 
 var idPool *IdPool
@@ -115,6 +120,7 @@ func Init(){
 	myCountRequestAnswerChan = make(chan *MyCountRequestAnswer,ChanBuf)
 	myWillDeadStoneChan = make(chan *MyWillDeadStone,ChanBuf)
 	myCountResultChan = make(chan *MyCountResult,ChanBuf)
+	myCancelChan = make(chan *MyCancel,ChanBuf)
 	myGameOverChan = make(chan *MyGameOver,ChanBuf)
 
 	rand.Seed(time.Now().UnixNano())
@@ -468,6 +474,20 @@ func Dispatch() {
 				delete(recordCountResults,countResult.Gid)
 			}
 
+		case myCancel := <-myCancelChan:
+			mycancel := myCancel.Cancel
+			if game,ok := GetGame(mycancel.Gid); ok {
+
+				if game.State == pb.State_PAUSED {
+					msg := &pb.Msg{
+						Type: pb.MsgType_DO_CONTINUE,
+						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: mycancel.Gid}}}
+					SendToAllPlayer(mycancel.Gid,msg)
+				}
+				// clear the gid's count results
+				delete(recordCountResults,mycancel.Gid)
+			}
+
 		} // select ended
 	} // for ended
 }
@@ -554,6 +574,9 @@ func ProcessMsg(session *Session, msg *pb.Msg) {
 
 	case pb.MsgType_COUNT_RESULT:
 		myCountResultChan <- &MyCountResult{msg.GetCountResult()}
+
+	case pb.MsgType_CANCEL:
+		myCancelChan <- &MyCancel{msg.GetCancel()}
 
 	case pb.MsgType_COUNT_REQUEST:
 		myCountRequestChan <- &MyCountRequest{WithSession{session},msg.GetCountRequest()}

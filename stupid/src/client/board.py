@@ -21,9 +21,8 @@ class BoardPane(wx.Panel):
 	def getStones(self):
 		return self.getGame().stones
 
-	def toSelectMode(self):
-		self.analyze = True
-		self.selectMode = True
+	def setSelectMode(self,mybool):
+		self.selectMode = mybool
 		self.Refresh()
 # ---------------------------------------------------------
 	def getSize(self):
@@ -68,7 +67,7 @@ class BoardPane(wx.Panel):
 	def OnLeftDown(self,e):
 		userPoint = self.dev2user(e.GetPosition())
 		if validatePoint(userPoint):
-			if self.selectMode:
+			if self.selectMode and self.getGame().state == pb.State.PAUSED:
 				liveStones,_ = parseStones(self.getStones())
 				stone = self.getStoneAt(liveStones,userPoint.x,userPoint.y)
 				if stone:
@@ -202,7 +201,7 @@ class BoardPane(wx.Panel):
 			dc.DrawCircle(self.user2dev(wx.Point(stone.x,stone.y)),int(radius/2))
 # ---------------------------------------------------------
 		# analyze
-		if self.analyze:
+		if self.analyze or self.selectMode:
 			dc.SetPen(defaultPen)
 
 			color2points = self.getColorPoints()

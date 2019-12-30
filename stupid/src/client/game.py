@@ -185,7 +185,7 @@ class GameFrame(wx.Frame):
 
 		self.Show()
 		self.countTimer = wx.Timer(self)
-		self.Bind(wx.EVT_TIMER, self.onCount, self.countTimer)
+		self.Bind(wx.EVT_TIMER, self.OnCountdown, self.countTimer)
 
 		self.checkStart()
 # ---------------------------------------------------------
@@ -245,15 +245,8 @@ class GameFrame(wx.Frame):
 	def onMyAction(self,event):
 		myline = self.inputText.GetValue().split()
 		cmd = myline[0]
-		if cmd == "stone":
-			if self.myClockPane().isRunning():
-				stone = pb.Stone()
-				stone.color = self.myColor()
-				stone.x = int(myline[1])
-				stone.y = int(myline[2])
-				self.putStone(stone)
 
-		elif cmd == "admit":
+		if cmd == "admit":
 			result = pb.Result()
 			result.winner = otherColor(self.myColor())
 			result.endType = pb.EndType.ADMIT
@@ -278,6 +271,12 @@ class GameFrame(wx.Frame):
 		elif cmd == "result":
 			# logging.info(self.boardPane.getColorCount())
 			self.sendCountResult()
+
+		elif cmd == "cancel":
+			msg = pb.Msg()
+			msg.type = pb.MsgType.CANCEL
+			msg.cancel.gid = self.game.gid
+			self.sendMsg(msg)
 
 # ---------------------------------------------------------			
 	def startCountDown(self):
@@ -311,7 +310,7 @@ class GameFrame(wx.Frame):
 		self.checkStart()
 # ---------------------------------------------------------
 	def countRequest(self):
-		"对面发出的数子请求"
+		"接到对面发出的数子请求"
 		dialog = wx.MessageDialog(self, 'Are you want to count?', 'Question', 
         	wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 		result = dialog.ShowModal()
@@ -366,7 +365,7 @@ class GameFrame(wx.Frame):
 
 		self.boardPane.Refresh()
 
-	def onCount(self,event):
+	def OnCountdown(self,event):
 		"我等两分钟，对面超时，我就胜"
 		self.count -= 1
 
@@ -376,7 +375,7 @@ class GameFrame(wx.Frame):
 		elif self.count >= 0 and self.count <= 10:
 			logging.info("countdown 1:{}".format(self.count))
 		else:
-			self.countOverflow()
+			self.countdownOverflow()
 
 	def sendWillDeadStone(self,mystone,myaddOrRemove):
 		msg = pb.Msg()
@@ -386,8 +385,8 @@ class GameFrame(wx.Frame):
 		msg.willDeadStone.stone.CopyFrom(mystone)
 		self.sendMsg(msg)
 
-	def countOverflow(self):
-		"对面超时了"
+	def countdownOverflow(self):
+		"对面断线了，但是我等了两分钟还没回来"
 		self.stopCountDown()
 
 		myresult = pb.Result()
@@ -411,7 +410,7 @@ class GameFrame(wx.Frame):
 		self.startCountDown()
 
 	def comeback(self):
-		"收到comeback,意味着万事俱备，可以开始了"
+		"对面comeback,意味着万事俱备，可以开始了"
 		if self.game.lineBroken == True:
 			self.stopCountDown()
 			self.game.lineBroken = False
@@ -427,6 +426,7 @@ class GameFrame(wx.Frame):
 		"断线，申请数目之后，都需要再开始一下。申请数目会使game暂停。"
 		if self.game.state == pb.State.PAUSED:
 			self.game.state = pb.State.RUNNING
+			self.boardPane.setSelectMode(False)
 			self.checkStart()
 # ---------------------------------------------------------
 	def iamTimeout(self):
