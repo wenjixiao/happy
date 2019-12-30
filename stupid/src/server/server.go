@@ -280,7 +280,7 @@ func CanGameStart(game *pb.Game) bool {
 }
 
 func Dispatch() {
-	var recordCountResults []*pb.CountResult = make([]*pb.CountResult,2)
+	recordCountResults := make(map[int32][]*pb.CountResult)
 
 	for {
 		select {
@@ -436,9 +436,18 @@ func Dispatch() {
 		case myCountResult := <-myCountResultChan:
 			// gameover by count
 			countResult := myCountResult.CountResult
-			recordCountResults = append(recordCountResults,countResult)
-			if agree,all := AgreeCountResults(recordCountResults,countResult.Gid); all == 2 {
-				if agree == 2 {
+
+			records,ok := recordCountResults[countResult.Gid]
+			if ok {
+				recordCountResults[countResult.Gid] = append(records,countResult)
+			}else{
+				recordCountResults[countResult.Gid] = []*pb.CountResult{countResult}
+			}
+
+			myCountResults := recordCountResults[countResult.Gid]
+
+			if len(myCountResults) == 2 {
+				if AgreeCountResults(myCountResults) {
 					// Gameover
 					msg := &pb.Msg{
 						Type: pb.MsgType_GAME_OVER,
@@ -454,22 +463,24 @@ func Dispatch() {
 						Union: &pb.Msg_DoContinue{&pb.DoContinue{Gid: countResult.Gid}}}
 					SendToAllPlayer(countResult.Gid,msg)
 				}
+
+				// clear the gid's count results
+				delete(recordCountResults,countResult.Gid)
 			}
 
 		} // select ended
 	} // for ended
 }
 
-func AgreeCountResults(theCountResults []*pb.CountResult,gid int32) (agree int,all int){
+func AgreeCountResults(theCountResults []*pb.CountResult) bool {
+	result := true
 	for _,countResult := range theCountResults {
-		if countResult.Gid == gid {
-			all += 1
-			if countResult.Agree {
-				agree += 1
-			}
+		if !countResult.Agree {
+			result = false
+			break
 		}
 	}
-	return
+	return result
 }
 
 func SendToAllPlayer(gid int32,msg *pb.Msg) {

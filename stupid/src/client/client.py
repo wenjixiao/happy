@@ -89,7 +89,6 @@ class BasicClient(wx.Frame):
 # ---------------------------------------------------------
 	def msg_received(self,msg):
 		logging.info("=========received==========")
-		logging.info(msg)
 
 		if msg.type == pb.MsgType.LOGIN_OK:
 			self.player = msg.loginOk.player
@@ -126,24 +125,28 @@ class BasicClient(wx.Frame):
 
 		elif msg.type == pb.MsgType.GAME_OVER:
 			# timeout or admit 超时或者认输，棋局就真的结束了！
+			logging.info(msg)
 			self.withGameFrame(msg.gameOver.gid,lambda gf: gf.gameover(msg.gameOver.result))
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST:
 			# 收到数目请求
+			logging.info(msg)
 			self.withGameFrame(msg.countRequest.gid,lambda gf: gf.countRequest())
 
 		elif msg.type == pb.MsgType.COUNT_REQUEST_ANSWER:
 			# 收到数目回答。同意就开始数子，不同意，就继续。
+			logging.info(msg)
 			cra = msg.countRequestAnswer
 			def myfun(gf):
 				if cra.agree:
-					gf.selectDeadStones()
+					gf.boardPane.toSelectMode()
 				else:
 					gf.doContinue()
 			self.withGameFrame(cra.gid,myfun)
 		
 		elif msg.type == pb.MsgType.DO_CONTINUE:
 			# 目前，对于数子的结果，如果两人没达成一致，服务器会发出docontinue消息。
+			logging.info(msg)
 			self.withGameFrame(msg.doContinue.gid,lambda gf: gf.doContinue())
 
 		elif msg.type == pb.MsgType.CLOCK_NOTIFY:
@@ -151,14 +154,17 @@ class BasicClient(wx.Frame):
 			self.withGameFrame(cn.gid,lambda gf: gf.clockNotify(cn.pid,cn.clock))
 
 		elif msg.type == pb.MsgType.LINE_BROKEN:
+			logging.info(msg)
 			self.withGameFrame(msg.lineBroken.gid,lambda gf: gf.lineBroken())
 
 		elif msg.type == pb.MsgType.COMEBACK:
+			logging.info(msg)
 			self.withGameFrame(msg.comeback.gid,lambda gf: gf.comeback())
 
 		elif msg.type == pb.MsgType.WILL_DEAD_STONE:
+			logging.info(msg)
 			ds = msg.willDeadStone
-			self.withGameFrame(ds.gid,lambda gf: gf.willDeadStone(ds.addOrRemove,ds.stone))
+			self.withGameFrame(ds.gid,lambda gf: gf.boardPane.willDeadStone(ds.addOrRemove,ds.stone))
 
 # ---------------------------------------------------------
 	def withGameFrame(self,gid,myfun):

@@ -278,8 +278,9 @@ class GameFrame(wx.Frame):
 		elif cmd == "myturn":
 			logging.info(self.isMyTurn())
 
-		elif cmd == "how":
-			logging.info(self.boardPane.getColorCount())
+		elif cmd == "sendCountResult":
+			# logging.info(self.boardPane.getColorCount())
+			self.sendCountResult()
 
 # ---------------------------------------------------------			
 	def startCountDown(self):
@@ -329,11 +330,7 @@ class GameFrame(wx.Frame):
 		if isAgree:
 			self.doPaused()
 			# change to select mode to select will dead stones
-			self.boardPane.selectMode()
-
-	def willDeadStone(self,addOrRemove,stone):
-		"对面选了死子，或者选错取消某些死子"
-		self.boardPane.willDeadStone(addOrRemove,stone)
+			self.boardPane.toSelectMode()
 
 	def sendCountResult(self):
 		"死的都选完了，可以结算了"
@@ -342,7 +339,7 @@ class GameFrame(wx.Frame):
 		gameResult.winner,gameResult.mount = self.computePoints()
 		# 弹出对话框，问一下是否同意结果。发消息给对面，以确定下一步。
 
-		words = "color:"+gameResult.winner+",mount:"+gameResult.mount
+		words = "color:"+str(gameResult.winner)+",mount:"+str(gameResult.mount)
 		dialog = wx.MessageDialog(self, words, 'Agree?', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
 		result = dialog.ShowModal()
 
@@ -356,8 +353,12 @@ class GameFrame(wx.Frame):
 
 	def computePoints(self):
 		# @todo 我还没有想到一个比较好的形势判断的方法，这个是真的麻烦！
-
-		return (pb.Color.BLACK,1.5)
+		color2points = self.boardPane.getColorPoints()
+		b = len(color2points[pb.Color.BLACK])
+		w = len(color2points[pb.Color.WHITE])
+		mount = b - self.game.proto.tieMu - w
+		winColor = pb.Color.BLACK if mount > 0 else pb.Color.WHITE
+		return (winColor,mount)
 
 # ---------------------------------------------------------
 	def gameover(self,result):

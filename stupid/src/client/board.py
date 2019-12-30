@@ -21,7 +21,7 @@ class BoardPane(wx.Panel):
 	def getStones(self):
 		return self.getGame().stones
 
-	def selectMode(self):
+	def toSelectMode(self):
 		self.analyze = True
 		self.selectMode = True
 		self.Refresh()
@@ -70,7 +70,7 @@ class BoardPane(wx.Panel):
 		if validatePoint(userPoint):
 			if self.selectMode:
 				liveStones,_ = parseStones(self.getStones())
-				stone = getStoneAt(liveStones,userPoint.x,userPoint.y)
+				stone = self.getStoneAt(liveStones,userPoint.x,userPoint.y)
 				if stone:
 					if stone not in self.willDeadStones:
 						self.willDeadStones.append(stone)
@@ -177,6 +177,9 @@ class BoardPane(wx.Panel):
 	def OnPaint(self,event):
 		dc = wx.PaintDC(self)
 
+		defaultPen = dc.GetPen()
+		defaultBrush = dc.GetBrush()
+
 		_,_,radius = self.getSize()
 
 		# draw 19*19 lines
@@ -204,6 +207,8 @@ class BoardPane(wx.Panel):
 # ---------------------------------------------------------
 		# analyze
 		if self.analyze:
+			dc.SetPen(defaultPen)
+
 			color2points = self.getColorPoints()
 			for color in color2points.keys():
 				mycolor = '#CC7F32' if color == pb.Color.BLACK else '#238E23'
