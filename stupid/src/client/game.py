@@ -4,13 +4,16 @@ import logging
 from board import BoardPane
 from common import otherColor
 
+def getColorStName(pid):
+	return pid+".colorSt"
+
+def getClockPaneName(pid):
+	return pid+".clockPane"
 
 class PlayersPane(wx.Panel):
 	def __init__(self,parent,gameFrame):
 		super(PlayersPane,self).__init__(parent)
 		self.gameFrame = gameFrame
-		self.pid2clockpane = {}
-		self.pid2colorst = {}
 		# self.SetBackgroundColour(wx.BLUE)
 
 		grid = wx.GridBagSizer(3,2)
@@ -20,13 +23,11 @@ class PlayersPane(wx.Panel):
 			pidPanel = wx.Panel(self)
 			hbox = wx.BoxSizer()
 
-			pidSt = wx.StaticText(pidPanel,label = self.getPidStr(player))
+			pidSt = wx.StaticText(pidPanel,label = str(player.pid))
 			leftSt = wx.StaticText(pidPanel,label = "(")
 			color = 'B' if self.getGame().blackIndex == col else 'W'
-			colorSt = wx.StaticText(pidPanel,label = color)
+			colorSt = wx.StaticText(pidPanel,label = color,name=getColorStName(player.pid))
 			rightSt = wx.StaticText(pidPanel,label = ")")
-
-			self.pid2colorst[player.pid] = colorSt
 
 			hbox.Add(pidSt)
 			hbox.Add(leftSt)
@@ -35,14 +36,12 @@ class PlayersPane(wx.Panel):
 
 			pidPanel.SetSizer(hbox)
 			
-			levelSt = wx.StaticText(self,label = self.getLevelStr(player))
-			clockPane = ClockPane(self,self.gameFrame,clock)
+			levelSt = wx.StaticText(self,label = str(player.level))
+			clockPane = ClockPane(self,self.gameFrame,clock,name=getClockPaneName(player.pid))
 
 			grid.Add(pidPanel,pos=(0,col),flag=wx.ALIGN_CENTER)
 			grid.Add(levelSt,pos=(1,col),flag=wx.ALIGN_CENTER)
 			grid.Add(clockPane,pos=(2,col),flag=wx.EXPAND)
-
-			self.pid2clockpane[player.pid] = clockPane
 
 		# fuck! I always forget set the grid's growable property
 		grid.AddGrowableCol(0)
@@ -53,19 +52,13 @@ class PlayersPane(wx.Panel):
 	def getGame(self):
 		return self.gameFrame.game
 
-	def getPidStr(self,player):
-		return str(player.pid)
-
-	def getLevelStr(self,player):
-		return str(player.level)
-
 	def setClock(self,pid,clock):
-		self.pid2clockpane[pid].setClock(clock)
-
+		clockPane = wx.FindWindowByName(getClockPaneName(pid),parent=self)
+		clockPane.setClock(clock)
 
 class ClockPane(wx.Panel):
-	def __init__(self,parent,gameFrame,clock):
-		super(ClockPane,self).__init__(parent)
+	def __init__(self,parent,gameFrame,clock,**kvargs):
+		super(ClockPane,self).__init__(parent,**kvargs)
 		self.gameFrame = gameFrame
 		self.clock = clock
 		self.timer = wx.Timer(self)
@@ -201,34 +194,30 @@ class GameFrame(wx.Frame):
 		if self.game.state == pb.State.RUNNING and self.game.lineBroken:
 			self.startCountDown()
 
-		# 设置turn颜色
-		for mypid,mycolorst in self.playersPane.pid2colorst.items():
-			if mypid == self.getNextPid():
-				mycolorst.SetForegroundColour(wx.RED)
-			else:
-				mycolorst.SetForegroundColour(wx.BLACK)
+		# 设置turn颜色，colorst是B或者W，就是个字母
+		for player in self.game.players:
+			mycolor = wx.RED if player.pid == self.getNextPid() else wx.BLACK
+			colorSt = wx.FindWindowByName(getColorStName(player.pid),parent=self.playersPane)
+			colorSt.SetForegroundColour(mycolor)
 		# 不重画，改了也没用！妈的，感觉逻辑没错，运行时就是没反应，这个refresh太坑了！
+		# 也可以，整个frame都refresh一下！
 		self.playersPane.Refresh()
 
 	def getNextColor(self):
 		return self.boardPane.getNextColor()
 
 	def getNextPid(self):
-		for index,player in enumerate(self.game.players):
-			if index == self.game.blackIndex:
-				# 他是黑的，nextColor也是黑的，那么他就是下一个
-				if self.getNextColor() == pb.Color.BLACK:
-					return player.pid
-			else:
-				# white
-				if self.getNextColor() == pb.Color.WHITE:
-					return player.pid
+		color2player = self.getColor2Player()
+		nextPlayer = color2player[self.getNextColor()]
+		return nextPlayer.pid
+
+	def getColor2Player(self):
+		blackIndex = self.game.blackIndex
+		whiteIndex = 0 if blackIndex == 1 else 1
+		return {pb.Color.BLACK:self.game.players[blackIndex],pb.Color.WHITE:self.game.players[whiteIndex]}
 
 	def myClockPane(self):
-		return self.playersPane.pid2clockpane[self.myPlayer().pid]
-
-	def myColorSt(self):
-		return self.playersPane.pid2colorst[self.myPlayer().pid]
+		return wx.FindWindowByName(getClockPaneName(self.myPlayer().pid),parent=self.playersPane)
 
 	def myColor(self):
 		return pb.Color.BLACK if self.game.players[self.game.blackIndex] == self.myPlayer() else pb.Color.WHITE
@@ -326,7 +315,7 @@ class GameFrame(wx.Frame):
 		if isAgree:
 			self.doPaused()
 			# change to select mode to select will dead stones
-			self.boardPane.toSelectMode()
+			self.boardPane.setSelectMode(True)
 
 	def sendCountResult(self):
 		"死的都选完了，可以结算了"
