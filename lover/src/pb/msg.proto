@@ -1,0 +1,31 @@
+syntax="proto3";
+
+package pb;
+
+enum Type {
+    LOGIN = 0;
+    LOGOUT = 1;
+    PLAYER = 2;
+}
+
+message Msg{
+    Type type = 1;
+    oneof union {
+        Player player = 2;
+        Login login = 3;
+        Logout logout = 4;
+    }
+}
+
+message Login {
+    string pid = 1;
+    string passwd = 2;
+}
+
+message Logout {}
+
+message Player {
+    string pid = 1;
+    string passwd = 2;
+    int32 age = 3;
+}
