@@ -12,16 +12,16 @@ import (
 
 var done = make(chan struct{})
 
-type ClientMsgProtocol struct {
+type ClientProtocol struct {
 	Player *pb.Player
 	Conn   net.Conn
 }
 
-func (protocol *ClientMsgProtocol) ConnectionMade(conn net.Conn) {
+func (protocol *ClientProtocol) ConnectionMade(conn net.Conn) {
 	protocol.Conn = conn
 }
 
-func (protocol *ClientMsgProtocol) MsgReceived(msg *pb.Msg) {
+func (protocol *ClientProtocol) MsgReceived(msg *pb.Msg) {
 	log.Printf("protocol received: %v", msg)
 	switch msg.GetType() {
 	case pb.Type_LOGIN_RESULT:
@@ -30,12 +30,12 @@ func (protocol *ClientMsgProtocol) MsgReceived(msg *pb.Msg) {
 	}
 }
 
-func (protocol *ClientMsgProtocol) ConnectionLost(err error) {
+func (protocol *ClientProtocol) ConnectionLost(err error) {
 	log.Printf("connection lost: %v", err)
 	done <- struct{}{}
 }
 
-func CmdLoop(protocol *ClientMsgProtocol) {
+func CmdLoop(protocol *ClientProtocol) {
 	input := bufio.NewScanner(os.Stdin)
 	for input.Scan() {
 		line := input.Text()
@@ -72,7 +72,7 @@ func main() {
 		log.Fatalf("connect error: %v", err)
 	}
 
-	protocol := &ClientMsgProtocol{}
+	protocol := &ClientProtocol{}
 	go mynet.HandleConn(conn, protocol)
 
 	CmdLoop(protocol)
