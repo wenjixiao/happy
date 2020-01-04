@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"pb"
+	"strings"
 )
 
 var done = make(chan struct{})
@@ -22,6 +23,11 @@ func (protocol *ClientMsgProtocol) ConnectionMade(conn net.Conn) {
 
 func (protocol *ClientMsgProtocol) MsgReceived(msg *pb.Msg) {
 	log.Printf("protocol received: %v", msg)
+	switch msg.GetType() {
+	case pb.Type_LOGIN_RESULT:
+		loginResult := msg.GetLoginResult()
+		log.Println(loginResult)
+	}
 }
 
 func (protocol *ClientMsgProtocol) ConnectionLost(err error) {
@@ -32,9 +38,17 @@ func (protocol *ClientMsgProtocol) ConnectionLost(err error) {
 func CmdLoop(protocol *ClientMsgProtocol) {
 	input := bufio.NewScanner(os.Stdin)
 	for input.Scan() {
-		cmd := input.Text()
+		line := input.Text()
+		if line == "" {
+			continue
+		}
+
+		cmdArray := strings.Split(line, " ")
+		cmd, params := cmdArray[0], cmdArray[1:]
+
 		if cmd == "login" {
-			msg := &pb.Msg{Type: pb.Type_LOGIN, Union: &pb.Msg_Login{&pb.Login{Pid: "wen", Passwd: "123"}}}
+			pid, password := params[0], params[1]
+			msg := &pb.Msg{Type: pb.Type_LOGIN, Union: &pb.Msg_Login{&pb.Login{Pid: pid, Passwd: password}}}
 			mynet.SendMsg(protocol.Conn, msg)
 		} else if cmd == "logout" {
 			msg := &pb.Msg{Type: pb.Type_LOGOUT, Union: &pb.Msg_Logout{&pb.Logout{}}}

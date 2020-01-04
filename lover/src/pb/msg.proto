@@ -6,6 +6,7 @@ enum Type {
     LOGIN = 0;
     LOGOUT = 1;
     PLAYER = 2;
+    LOGIN_RESULT = 3;
 }
 
 message Msg{
@@ -14,12 +15,18 @@ message Msg{
         Player player = 2;
         Login login = 3;
         Logout logout = 4;
+        LoginResult loginResult = 5;
     }
 }
 
 message Login {
     string pid = 1;
     string passwd = 2;
+}
+
+message LoginResult {
+    bool success = 1;
+    Player player = 2;
 }
 
 message Logout {}
