@@ -3,36 +3,69 @@ package mynet
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/golang/protobuf/proto"
 	"io"
 	"log"
 	"net"
-	"pb"
 )
 
 const HeaderSize = 4
 
-type MsgProtocol interface {
+func AddHeader(msgBytes []byte) []byte {
+	head := make([]byte, HeaderSize)
+	binary.LittleEndian.PutUint32(head, uint32(len(msgBytes)))
+	return append(head, msgBytes...)
+}
+
+type Protocol interface {
 	ConnectionMade(conn net.Conn)
-	MsgReceived(msg *pb.Msg)
+	DataReceived(data []byte)
 	ConnectionLost(err error)
 }
 
-func HandleConn(conn net.Conn, protocol MsgProtocol) {
+type MsgReceiver interface {
+	ProcessMsg(msgBytes []byte)
+}
+
+type MsgProtocol struct {
+	Protocol
+	Receiver MsgReceiver
+	msgBuf   []byte
+	head     uint32
+	bodyLen  int
+}
+
+func (mp *MsgProtocol) DataReceived(data []byte) {
+	mp.msgBuf = append(mp.msgBuf, data...)
+	for {
+		if mp.bodyLen == 0 && len(mp.msgBuf) >= HeaderSize {
+			err := binary.Read(bytes.NewReader(mp.msgBuf[:HeaderSize]), binary.LittleEndian, &mp.head)
+			if err != nil {
+				log.Printf("msg head decode: %v", err)
+			}
+			mp.bodyLen = int(mp.head)
+		}
+		//has head,now read body
+		if mp.bodyLen > 0 && len(mp.msgBuf) >= mp.bodyLen+HeaderSize {
+			bin := mp.msgBuf[HeaderSize : mp.bodyLen+HeaderSize]
+			mp.Receiver.ProcessMsg(bin)
+			mp.msgBuf = mp.msgBuf[mp.bodyLen+HeaderSize:]
+			mp.bodyLen = 0
+		} else {
+			//msgBuf.Len() < bodyLen ,one pb receiving is not complete
+			//need to receive again
+			break
+		}
+	}
+}
+
+func HandleConn(conn net.Conn, protocol Protocol) {
 	defer conn.Close()
 
 	protocol.ConnectionMade(conn)
 
-	const MsgBufLen = 1024 * 10 //10KB
-	const ReadBufLen = 1024     //1KB
+	log.Printf("client: %v", conn.RemoteAddr())
 
-	log.Printf("client: %v\n", conn.RemoteAddr())
-
-	msgBuf := bytes.NewBuffer(make([]byte, 0, MsgBufLen))
-	readBuf := make([]byte, ReadBufLen)
-
-	head := uint32(0)
-	bodyLen := 0 //bodyLen is a flag,when readed head,but body'len is not enougth
+	readBuf := make([]byte, 1024)
 
 	for {
 		n, err := conn.Read(readBuf)
@@ -48,57 +81,6 @@ func HandleConn(conn net.Conn, protocol MsgProtocol) {
 			}
 			break
 		}
-
-		_, err = msgBuf.Write(readBuf[:n])
-
-		if err != nil {
-			log.Fatalf("buf write: %v\n", err)
-		}
-
-		for {
-			//read the pb head
-			if bodyLen == 0 && msgBuf.Len() >= HeaderSize {
-				err := binary.Read(msgBuf, binary.LittleEndian, &head)
-				if err != nil {
-					log.Printf("pb head decode: %v\n", err)
-				}
-				bodyLen = int(head)
-
-				if bodyLen > MsgBufLen {
-					log.Fatalf("pb body overflow: %d\n", bodyLen)
-				}
-			}
-			//has head,now read body
-			if bodyLen > 0 && msgBuf.Len() >= bodyLen {
-				msg := &pb.Msg{}
-				err := proto.Unmarshal(msgBuf.Next(bodyLen), msg)
-				if err != nil {
-					log.Fatalf("proto unmarshal: %v\n", err)
-				}
-				protocol.MsgReceived(msg)
-				bodyLen = 0
-			} else {
-				//msgBuf.Len() < bodyLen ,one pb receiving is not complete
-				//need to receive again
-				break
-			}
-		}
-	}
-}
-
-func AddHeader(msgBytes []byte) []byte {
-	head := make([]byte, HeaderSize)
-	binary.LittleEndian.PutUint32(head, uint32(len(msgBytes)))
-	return append(head, msgBytes...)
-}
-
-func SendMsg(conn net.Conn, msg *pb.Msg) {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		log.Fatalf("proto marshal: %v\n", err)
-	}
-	_, err = conn.Write(AddHeader(data))
-	if err != nil {
-		log.Fatalf("conn write: %v\n", err)
+		protocol.DataReceived(readBuf[:n])
 	}
 }

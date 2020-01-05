@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"mynet"
+	"mynet/encoder"
 	"net"
 	"pb"
 )
@@ -43,20 +44,16 @@ func (context *Context) GetPlayer(pid string, passwd string) (player *pb.Player,
 
 func (context *Context) RemoveProtocol(protocol *ServerProtocol) bool {
 	index := -1
-
 	for i, p := range context.Protocols {
 		if p == protocol {
 			index = i
 			break
 		}
 	}
-
 	removeOk := index != -1
-
 	if removeOk {
 		context.Protocols = append(context.Protocols[:index], context.Protocols[index+1:]...)
 	}
-
 	return removeOk
 }
 
@@ -75,7 +72,7 @@ func (context *Context) MainService() {
 				player, success = protocol.Context.GetPlayer(login.GetPid(), login.GetPasswd())
 				msg := &pb.Msg{Type: pb.Type_LOGIN_RESULT,
 					Union: &pb.Msg_LoginResult{&pb.LoginResult{Player: player, Success: success}}}
-				mynet.SendMsg(protocol.Conn, msg)
+				encoder.SendMsg(protocol.Conn, msg)
 				if success {
 					protocol.Player = player
 				}
@@ -84,6 +81,8 @@ func (context *Context) MainService() {
 			}
 
 		//---------------------------------------------------------
+		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
+		// 全部交给主线处理，简单明了，不会出错。
 		case opProtocol := <-context.OpProtocols:
 			if opProtocol.AddOrRemove {
 				context.AddProtocol(opProtocol.Protocol)
@@ -91,18 +90,12 @@ func (context *Context) MainService() {
 				context.RemoveProtocol(opProtocol.Protocol)
 			}
 			//---------------------------------------------------------
-		}
+		} // select ended
 	}
 	log.Println("----main service exit!----")
 }
 
 //---------------------------------------------------------
-type ServerProtocol struct {
-	Context *Context
-	Conn    net.Conn
-	Player  *pb.Player
-}
-
 type Message struct {
 	Msg      *pb.Msg
 	Protocol *ServerProtocol
@@ -113,20 +106,27 @@ type OpProtocol struct {
 	Protocol    *ServerProtocol
 }
 
-func (protocol *ServerProtocol) ConnectionMade(conn net.Conn) {
+type ServerProtocol struct {
+	mynet.MsgProtocol
+	Context *Context
+	Conn    net.Conn
+	Player  *pb.Player
+}
+
+func (sp *ServerProtocol) ConnectionMade(conn net.Conn) {
 	log.Printf("connection made: %v", conn)
-	protocol.Conn = conn
-	protocol.Context.OpProtocols <- &OpProtocol{AddOrRemove: true, Protocol: protocol}
+	sp.Conn = conn
+	sp.Context.OpProtocols <- &OpProtocol{AddOrRemove: true, Protocol: sp}
 }
 
-func (protocol *ServerProtocol) MsgReceived(msg *pb.Msg) {
-	log.Printf("protocol received: %v", msg)
-	protocol.Context.Messages <- &Message{msg, protocol}
-}
-
-func (protocol *ServerProtocol) ConnectionLost(err error) {
+func (sp *ServerProtocol) ConnectionLost(err error) {
 	log.Printf("connection lost: %v", err)
-	protocol.Context.OpProtocols <- &OpProtocol{AddOrRemove: false, Protocol: protocol}
+	sp.Context.OpProtocols <- &OpProtocol{AddOrRemove: false, Protocol: sp}
+}
+
+func (sp *ServerProtocol) ProcessMsg(msgBytes []byte) {
+	log.Println("server msg protocol implement")
+	sp.Context.Messages <- &Message{encoder.DecodeMsg(msgBytes), sp}
 }
 
 //---------------------------------------------------------
@@ -148,7 +148,9 @@ func ListenAndService() {
 			log.Fatalf("socket accept: %v", err)
 		}
 
-		protocol := &ServerProtocol{Context: context}
+		protocol := &ServerProtocol{Context: context, Conn: conn}
+		protocol.Receiver = protocol
+
 		go mynet.HandleConn(conn, protocol)
 	}
 	log.Println("----listenAndService exit!----")
