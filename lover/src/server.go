@@ -8,7 +8,7 @@ import (
 	"pb/encoder"
 )
 
-const addr = ":20000"
+const ADDR = ":20000"
 
 //---------------------------------------------------------
 type Context struct {
@@ -57,14 +57,23 @@ func (context *Context) RemoveProtocol(protocol *ServerProtocol) bool {
 	return removeOk
 }
 
-func (context *Context) MainService() {
+// override ProtocolFactory
+func (context *Context) CreateProtocol() mynet.Protocol {
+	protocol := &ServerProtocol{}
+	protocol.Context = context
+	protocol.Receiver = protocol
+	return protocol
+}
+
+func (context *Context) MainLoop() {
 	for {
 		select {
-		//---------------------------------------------------------
+		//=========================================================
 		case message := <-context.Messages:
 			msg, protocol := message.Msg, message.Protocol
 
 			switch msg.GetType() {
+			//---------------------------------------------
 			case pb.Type_LOGIN:
 				login := msg.GetLogin()
 				var player *pb.Player
@@ -76,11 +85,13 @@ func (context *Context) MainService() {
 				if success {
 					protocol.Player = player
 				}
+			//---------------------------------------------
 			case pb.Type_LOGOUT:
 				protocol.Player = nil
+				//---------------------------------------------
 			}
 
-		//---------------------------------------------------------
+		//=========================================================
 		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
 		// 全部交给主线处理，简单明了，不会出错。
 		case opProtocol := <-context.OpProtocols:
@@ -89,7 +100,7 @@ func (context *Context) MainService() {
 			} else {
 				context.RemoveProtocol(opProtocol.Protocol)
 			}
-			//---------------------------------------------------------
+			//=========================================================
 		} // select ended
 	}
 	log.Println("----main service exit!----")
@@ -124,38 +135,16 @@ func (sp *ServerProtocol) ConnectionLost(err error) {
 	sp.Context.OpProtocols <- &OpProtocol{AddOrRemove: false, Protocol: sp}
 }
 
+// override MsgProcessor
 func (sp *ServerProtocol) ProcessMsg(msgBytes []byte) {
-	log.Println("server msg protocol implement")
 	sp.Context.Messages <- &Message{encoder.DecodeMsg(msgBytes), sp}
 }
 
 //---------------------------------------------------------
-func ListenAndService() {
-	context := DefaultContext()
-	//启动主服务
-	go context.MainService()
-
-	listener, err := net.Listen("tcp", addr)
-	defer listener.Close()
-
-	if err != nil {
-		log.Fatalf("listener: %v", err)
-	}
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Fatalf("socket accept: %v", err)
-		}
-
-		protocol := &ServerProtocol{Context: context, Conn: conn}
-		protocol.Receiver = protocol
-
-		go mynet.HandleConn(conn, protocol)
-	}
-	log.Println("----listenAndService exit!----")
-}
 
 func main() {
-	ListenAndService()
+	context := DefaultContext()
+	//启动主服务
+	go context.MainLoop()
+	mynet.ListenForever(ADDR, context)
 }

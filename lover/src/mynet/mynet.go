@@ -26,6 +26,10 @@ type MsgReceiver interface {
 	ProcessMsg(msgBytes []byte)
 }
 
+type ProtocolFactory interface {
+	CreateProtocol() Protocol
+}
+
 type MsgProtocol struct {
 	Protocol
 	Receiver MsgReceiver
@@ -64,7 +68,7 @@ func HandleConn(conn net.Conn, protocol Protocol) {
 
 	protocol.ConnectionMade(conn)
 
-	log.Printf("client: %v", conn.RemoteAddr())
+	log.Printf("got client: %v", conn.RemoteAddr())
 
 	readBuf := make([]byte, 1024)
 
@@ -84,4 +88,22 @@ func HandleConn(conn net.Conn, protocol Protocol) {
 		}
 		protocol.DataReceived(readBuf[:n])
 	}
+}
+
+func ListenForever(addr string, protocolFactory ProtocolFactory) {
+	listener, err := net.Listen("tcp", addr)
+	defer listener.Close()
+
+	if err != nil {
+		log.Fatalf("listener: %v", err)
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatalf("socket accept: %v", err)
+		}
+		go HandleConn(conn, protocolFactory.CreateProtocol())
+	}
+	log.Println("----listenForever exit!----")
 }
