@@ -29,26 +29,27 @@ type MsgReceiver interface {
 type MsgProtocol struct {
 	Protocol
 	Receiver MsgReceiver
-	msgBuf   []byte
+	msgBuf   bytes.Buffer
 	head     uint32
 	bodyLen  int
 }
 
 func (mp *MsgProtocol) DataReceived(data []byte) {
-	mp.msgBuf = append(mp.msgBuf, data...)
+	_, err := mp.msgBuf.Write(data)
+	if err != nil {
+		log.Fatalf("buf write: %s\n", err)
+	}
 	for {
-		if mp.bodyLen == 0 && len(mp.msgBuf) >= HeaderSize {
-			err := binary.Read(bytes.NewReader(mp.msgBuf[:HeaderSize]), binary.LittleEndian, &mp.head)
+		if mp.bodyLen == 0 && mp.msgBuf.Len() >= HeaderSize {
+			err := binary.Read(&mp.msgBuf, binary.LittleEndian, &mp.head)
 			if err != nil {
 				log.Printf("msg head decode: %v", err)
 			}
 			mp.bodyLen = int(mp.head)
 		}
 		//has head,now read body
-		if mp.bodyLen > 0 && len(mp.msgBuf) >= mp.bodyLen+HeaderSize {
-			bin := mp.msgBuf[HeaderSize : mp.bodyLen+HeaderSize]
-			mp.Receiver.ProcessMsg(bin)
-			mp.msgBuf = mp.msgBuf[mp.bodyLen+HeaderSize:]
+		if mp.bodyLen > 0 && mp.msgBuf.Len() >= mp.bodyLen {
+			mp.Receiver.ProcessMsg(mp.msgBuf.Next(mp.bodyLen))
 			mp.bodyLen = 0
 		} else {
 			//msgBuf.Len() < bodyLen ,one pb receiving is not complete

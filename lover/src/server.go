@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 	"mynet"
-	"mynet/encoder"
 	"net"
 	"pb"
+	"pb/encoder"
 )
 
 const addr = ":20000"

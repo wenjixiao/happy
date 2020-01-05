@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"log"
 	"mynet"
-	"mynet/encoder"
 	"net"
 	"os"
 	"pb"
+	"pb/encoder"
 	"strings"
 )
 
