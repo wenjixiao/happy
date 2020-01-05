@@ -159,6 +159,7 @@ class GameFrame(wx.Frame):
 	def __init__(self,parent,game):
 		super(GameFrame, self).__init__(parent, size=(600, 700))
 		self.game = game
+		# 对方断线后，我的等待时间
 		self.count = self.COUNTING
 		self.SetTitle("***"+self.GetParent().player.pid+"/"+str(self.game.gid)+"***")
 
@@ -177,6 +178,7 @@ class GameFrame(wx.Frame):
 		panel.SetSizer(vbox)
 
 		self.Show()
+		
 		self.countTimer = wx.Timer(self)
 		self.Bind(wx.EVT_TIMER, self.OnCountdown, self.countTimer)
 
@@ -216,6 +218,12 @@ class GameFrame(wx.Frame):
 		whiteIndex = 0 if blackIndex == 1 else 1
 		return {pb.Color.BLACK:self.game.players[blackIndex],pb.Color.WHITE:self.game.players[whiteIndex]}
 
+	# def getPid2Color(self):
+	# 	pid2color = {}
+	# 	for color,player in self.getColor2Player().items():
+	# 		pid2color[player.pid] = color
+	# 	return pid2color
+		
 	def myClockPane(self):
 		return wx.FindWindowByName(getClockPaneName(self.myPlayer().pid),parent=self.playersPane)
 

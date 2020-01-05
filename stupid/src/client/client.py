@@ -7,9 +7,9 @@ from basic import AsyncThread
 
 logging.basicConfig(level = logging.DEBUG)
 
-class BasicClient(wx.Frame):
+class Client(wx.Frame):
 	def __init__(self, parent, title):
-		super(BasicClient, self).__init__(parent, title=title, size=(600, 400))
+		super(Client, self).__init__(parent, title=title, size=(600, 400))
 		self.init()
 		self.init_ui()
 		self.init_async()
@@ -33,7 +33,7 @@ class BasicClient(wx.Frame):
 		self.output_text = wx.TextCtrl(panel, style = wx.TE_MULTILINE | wx.HSCROLL)
 		self.run_button = wx.Button(panel,label = 'Run')
 		
-		self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
+		# self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
 		self.Bind(wx.EVT_BUTTON,self.on_run_button,source=self.run_button)
 		self.Bind(wx.EVT_TEXT_ENTER,self.on_run_button,source=self.input_text)
 	
@@ -47,9 +47,10 @@ class BasicClient(wx.Frame):
 		
 		panel.SetSizer(vbox)
 
-	def OnCloseWindow(self,event):
-		self.async_thread.dis_connect()
-		self.Destroy()
+	# def OnCloseWindow(self,event):
+	# 	self.async_thread.dis_connect()
+	# 	self.Close()
+		# self.Destroy()
 
 	def on_run_button(self,event):
 		self.output_text.Clear()
@@ -190,7 +191,7 @@ class BasicClient(wx.Frame):
 
 if __name__ == '__main__':
 	app = wx.App()
-	BasicClient(None, title='*** basic client ***')
+	Client(None, title='*** client ***')
 	app.MainLoop()
 
 # ---------------------------------------------------------	
