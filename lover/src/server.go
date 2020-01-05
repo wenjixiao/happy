@@ -10,13 +10,31 @@ import (
 
 const ADDR = ":20000"
 
-//---------------------------------------------------------
 type Context struct {
 	PlayersDB   []*pb.Player
 	Protocols   []*ServerProtocol
 	Messages    chan *Message
 	OpProtocols chan *OpProtocol
 }
+
+type ServerProtocol struct {
+	mynet.MsgProtocol
+	Context *Context
+	Conn    net.Conn
+	Player  *pb.Player
+}
+
+type Message struct {
+	Msg      *pb.Msg
+	Protocol *ServerProtocol
+}
+
+type OpProtocol struct {
+	AddOrRemove bool
+	Protocol    *ServerProtocol
+}
+
+//---------------------------------------------------------
 
 func DefaultContext() *Context {
 	p1 := &pb.Player{Pid: "wen", Passwd: "123", Age: 40}
@@ -90,7 +108,6 @@ func (context *Context) MainLoop() {
 				protocol.Player = nil
 				//---------------------------------------------
 			}
-
 		//=========================================================
 		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
 		// 全部交给主线处理，简单明了，不会出错。
@@ -107,22 +124,6 @@ func (context *Context) MainLoop() {
 }
 
 //---------------------------------------------------------
-type Message struct {
-	Msg      *pb.Msg
-	Protocol *ServerProtocol
-}
-
-type OpProtocol struct {
-	AddOrRemove bool
-	Protocol    *ServerProtocol
-}
-
-type ServerProtocol struct {
-	mynet.MsgProtocol
-	Context *Context
-	Conn    net.Conn
-	Player  *pb.Player
-}
 
 func (sp *ServerProtocol) ConnectionMade(conn net.Conn) {
 	log.Printf("connection made: %v", conn)
