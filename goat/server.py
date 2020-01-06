@@ -2,40 +2,48 @@ from msg_util import *
 import struct
 import asyncio
 
+
+def send_msg(transport, msg):
+    transport.write(add_header(encode_msg(msg)))
+
+
 # -----------------------------------------------------------------------------
+
+
 class MsgProtocol(asyncio.Protocol):
-    def __init__(self,context):
-        super(MsgProtocol,self).__init__()
+    def __init__(self, context):
+        super(MsgProtocol, self).__init__()
         self.buf = bytes()
         self.headSize = 4
         self.context = context
         self.player = None
+        self.transport = None
 
-    def connection_made(self,transport):
-        print("get conn",transport)
+    def connection_made(self, transport):
+        print("get conn", transport)
         self.transport = transport
 
-    def data_received(self,data):
+    def data_received(self, data):
         self.buf += data
         if len(self.buf) < self.headSize:
             return
-        bodySize, = struct.unpack('<I',self.buf[:self.headSize])
-        if len(self.buf) < self.headSize+bodySize:
+        body_size, = struct.unpack('<I', self.buf[:self.headSize])
+        if len(self.buf) < self.headSize + body_size:
             return
-        bin = self.buf[self.headSize:self.headSize+bodySize]
+        bin_data = self.buf[self.headSize:self.headSize + body_size]
         # we should override the *process_msg* method!
-        self.process_msg(decodeMsg(bin))
-        self.buf = self.buf[self.headSize+bodySize:]
-        
-    def process_msg(self,msg):
+        self.process_msg(decode_msg(bin_data))
+        self.buf = self.buf[self.headSize + body_size:]
+
+    def process_msg(self, msg):
         print(msg)
         if msg['type'] == 'login':
-            player = self.context.getPlayer(msg['pid'],msg['passwd'])
+            player = self.context.get_player(msg['pid'], msg['passwd'])
             if player:
                 self.player = player
                 self.context.add(self)
-                loginOk = {'type':'loginOk','player':{'pid':player.pid,'age':player.age}}
-                self.send_msg(loginOk)
+                login_ok = {'type': 'loginOk', 'player': {'pid': player.pid, 'age': player.age}}
+                send_msg(self.transport, login_ok)
             else:
                 print("***no that player!***")
 
@@ -43,50 +51,57 @@ class MsgProtocol(asyncio.Protocol):
             self.context.remove(self)
 
         elif msg['type'] == 'say':
-            toProtocol = self.context.getProtocol(msg['toPid'])
+            to_protocol = self.context.get_protocol(msg['toPid'])
             del msg['toPid']
             msg['fromPid'] = self.player.pid
-            self.send_msg(msg)
+            send_msg(to_protocol.transport, msg)
 
-    def send_msg(self,msg):
-        self.transport.write(addHeader(encodeMsg(msg)))
-
-    def connection_lost(self,exc):
-        print("connection lost: ",exc)
+    def connection_lost(self, exc):
+        print("connection lost: ", exc)
         # if exc is not None:
         #     print("---exit EXCEPTION---")
         # else:
         #     print("---exit normal---")
+
+
 # -----------------------------------------------------------------------------
+
+
 class Context:
     def __init__(self):
-        self.players = [Player('wen',passwd='123',age=40),Player('zhong',passwd='456',age=10)]
+        self.players = [Player('wen', passwd='123', age=40), Player('zhong', passwd='456', age=10)]
         self.protocols = set()
 
-    def getPlayer(self,pid,passwd):
+    def get_player(self, pid, passwd):
         for player in self.players:
             if player.pid == pid and player.passwd == passwd:
                 return player
         return None
 
-    def add(self,protocol):
+    def add(self, protocol):
         self.protocols.add(protocol)
 
-    def remove(self,protocol):
+    def remove(self, protocol):
         self.protocol.remove(protocol)
 
-    def getProtocol(self,pid):
+    def get_protocol(self, pid):
         for protocol in self.protocols:
             if protocol.player.pid == pid:
                 return protocol
         return None
+
+
 # -----------------------------------------------------------------------------
+
+
 async def main():
     context = Context()
     loop = asyncio.get_running_loop()
     server = await loop.create_server(lambda: MsgProtocol(context), '127.0.0.1', 20000)
     async with server:
         await server.serve_forever()
-# -----------------------------------------------------------------------------        
+
+
+# -----------------------------------------------------------------------------
 asyncio.run(main())
 # -----------------------------------------------------------------------------

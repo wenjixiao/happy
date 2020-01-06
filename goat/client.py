@@ -4,10 +4,11 @@ from queue import Queue
 from threading import Thread
 import time
 
+
 # -----------------------------------------------------------------------------
-def readMsg(sock):
-	"maybe *BLOCK*,when sock recv no data"
-	HeadSize = 4
+def read_msg(sock):
+	"""maybe *BLOCK*,when sock recv no data"""
+	head_size = 4
 	buf = bytes()
 	while True:
 		data = sock.recv(8192)
@@ -16,17 +17,20 @@ def readMsg(sock):
 		buf += data
 
 		while True:
-			if len(buf) < HeadSize:
+			if len(buf) < head_size:
 				break
-			bodySize, = struct.unpack('<I',buf[:HeadSize])
-			if len(buf) < HeadSize+bodySize:
+			body_size, = struct.unpack('<I', buf[:head_size])
+			if len(buf) < head_size + body_size:
 				break
-			bin = buf[HeadSize:HeadSize+bodySize]
-			yield decodeMsg(bin)
-			buf = buf[HeadSize+bodySize:]
+			bin_data = buf[head_size:head_size + body_size]
+			yield decode_msg(bin_data)
+			buf = buf[head_size + body_size:]
 
-def writeMsg(sock,msg):
-	sock.sendall(addHeader(encodeMsg(msg)))
+
+def write_msg(sock, msg):
+	sock.sendall(add_header(encode_msg(msg)))
+
+
 # -----------------------------------------------------------------------------
 class Client:
 	def __init__(self):
@@ -34,73 +38,76 @@ class Client:
 		self.player = None
 		self.sock = None
 
-	def getMsg(self):
+	def get_msg(self):
+		"invoke by msg reading thread"
 		try:
-			for msg in readMsg(self.sock):
+			for msg in read_msg(self.sock):
 				self.msgs.put(msg)
 		except Exception as e:
 			print(e)
 
-	def getPrompt(self):
-		return self.player.pid+'>' if self.player else '>'
+	def get_prompt(self):
+		return self.player.pid + '>' if self.player else '>'
 
-	def cmdLoop(self):
+	def cmd_loop(self):
 		try:
-			addr = ('localhost',20000)
-			self.sock = socket(AF_INET,SOCK_STREAM)
+			addr = ('localhost', 20000)
+			self.sock = socket(AF_INET, SOCK_STREAM)
 			self.sock.connect(addr)
 
-			Thread(target=self.getMsg,daemon=True).start()
+			Thread(target=self.get_msg, daemon=True).start()
 
 			while True:
-				line = input(self.getPrompt())
+				line = input(self.get_prompt())
 
 				if line == '':
-					self.checkMsgs()
+					self.check_msgs()
 					continue
 
-				cmd,*params = line.split()
+				cmd, *params = line.split()
 
 				if cmd == "exit":
 					self.sock.shutdown(SHUT_RDWR)
 					break
 
 				elif cmd == "login":
-					pid,passwd = params
-					msg = {'type':'login','pid':pid,'passwd':passwd}
-					writeMsg(self.sock,msg)
+					pid, passwd = params
+					msg = {'type': 'login', 'pid': pid, 'passwd': passwd}
+					write_msg(self.sock, msg)
 
 				elif cmd == "logout":
-					msg = {'type':'logout'}
-					writeMsg(self.sock,msg)
+					msg = {'type': 'logout'}
+					write_msg(self.sock, msg)
 
 				elif cmd == "say":
 					print(params)
-					toPid,content = params
-					msg = {'type':'say','toPid':toPid,'content':content}
-					writeMsg(self.sock,msg)
+					to_pid, content = params
+					msg = {'type': 'say', 'toPid': to_pid, 'content': content}
+					write_msg(self.sock, msg)
 
 				time.sleep(1)
-				self.checkMsgs()
+				self.check_msgs()
 		finally:
 			self.sock.close()
 
-	def checkMsgs(self):
+	def check_msgs(self):
 		print("----check msgs----")
 		while not self.msgs.empty():
-			self.processMsg(self.msgs.get())
+			self.process_msg(self.msgs.get())
 
-	def processMsg(self,msg):
+	def process_msg(self, msg):
 		mt = msg['type']
 
 		if mt == 'loginOk':
 			p = msg['player']
-			self.player = Player(p['pid'],age=p['age'])
+			self.player = Player(p['pid'], age=p['age'])
 
 		elif mt == 'say':
-			print("{}: {}".format(msg['fromPid'],msg['content']))
+			print("{}: {}".format(msg['fromPid'], msg['content']))
+
+
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
 	client = Client()
-	client.cmdLoop()
+	client.cmd_loop()
 	print("---------main exit------------")

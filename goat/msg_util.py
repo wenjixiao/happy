@@ -1,31 +1,36 @@
 import json
 import struct
-import asyncio
-
 
 
 class Player:
-	def __init__(self,pid,**props):
-		"pid,passwd,age"
+	def __init__(self, pid, **props):
+		"""pid,passwd,age"""
 		self.pid = pid
 		self.__dict__.update(props)
-		
-	def __eq__(self,other):
+
+	def __eq__(self, other):
 		return self.pid == other.pid
 
 	def __hash__(self):
 		return hash(self.pid)
 
 	def __str__(self):
-		return "player(pid={},age={})".format(self.pid,self.age)
+		return "player(pid={},age={})".format(self.pid, self.age)
+
+
 # -----------------------------------------------------------------------------
-def addHeader(bin):
-	header = struct.pack('I',len(bin))
-	return header+bin
 
-def decodeMsg(bin):
-	return json.loads(bin.decode())
 
-def encodeMsg(msg):
+def add_header(data):
+	header = struct.pack('I', len(data))
+	return header + data
+
+
+def decode_msg(data):
+	return json.loads(data.decode())
+
+
+def encode_msg(msg):
 	return json.dumps(msg).encode()
+
 # -----------------------------------------------------------------------------
