@@ -13,18 +13,9 @@ public class SockReading implements Runnable
     private SocketChannel channel;
     private Charset jsonCharset;
 
-    public SockReading(SocketChannel channel) throws IOException {
+    public SockReading(SocketChannel channel){
         this.channel = channel;
         jsonCharset = Charset.forName("UTF-8");
-        test();
-    }
-
-    public void test() throws IOException {
-        JSONObject json = new JSONObject();
-        json.put("type","login");
-        json.put("pid","wen");
-        json.put("passwd","123");
-        sendMsg(json);
     }
 
     /**
@@ -74,7 +65,7 @@ public class SockReading implements Runnable
         byte[] msgBody = encodeJSON(jsonObj);
         int bodyLen = msgBody.length;
         ByteBuffer buf = ByteBuffer.allocate(HEADER_LEN+bodyLen);
-        
+
         ByteBuffer headBuf = ByteBuffer.allocate(HEADER_LEN).order(ByteOrder.LITTLE_ENDIAN);
         headBuf.putInt(bodyLen);
 

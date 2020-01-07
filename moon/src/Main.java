@@ -1,28 +1,43 @@
 import java.net.Socket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import com.alibaba.fastjson.JSONObject;
 import java.util.concurrent.locks.*;
 
 public class Main{
-    public void connect(){
+    private SockReading sr;
+
+    public Main(){
         try{
             SocketAddress addr = new InetSocketAddress("localhost",20000);
-            SocketChannel channel = SocketChannel.open(addr);
-            SockReading sr = new SockReading(channel);
+            sr = new SockReading(SocketChannel.open(addr));
+
             Thread t = new Thread(sr);
             t.setDaemon(true);
             t.start();
-            t.join();
-            System.out.println("----main thread exit----");
-        } catch (Exception e){
+
+            test();
+            
+            Thread.sleep(2000);
+
+        }catch (IOException e){
+            e.printStackTrace();
+        }catch (InterruptedException e){
             e.printStackTrace();
         }
     }
 
+    public void test() throws IOException {
+        JSONObject json = new JSONObject();
+        json.put("type","login");
+        json.put("pid","wen");
+        json.put("passwd","123");
+        sr.sendMsg(json);
+    }
+
     public static void main(String[] args){
-        Main m = new Main();
-        m.connect();
+        new Main();
     }
 }
