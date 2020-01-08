@@ -7,55 +7,56 @@ import java.nio.channels.SocketChannel;
 
 import com.alibaba.fastjson.JSONObject;
 
-import mynet.AMsgProtocol;
-import mynet.JsonMsgProtocol;
-import mynet.encode.IMsgEncoder;
-import mynet.encode.JsonMsgEncoder;
+public class Main {
+	private JsonMsgProtocol protocol;
 
-public class Main{
-    private JsonMsgProtocol protocol;
+	public void connect() throws IOException {
+		SocketChannel channel = null;
+		try {
+			SocketAddress addr = new InetSocketAddress("localhost", 20000);
+			channel = SocketChannel.open(addr);
+			protocol = new JsonMsgProtocol(channel);
 
-    public Main(){
-        try{
-            SocketAddress addr = new InetSocketAddress("localhost",20000);
-            IMsgEncoder encoder = new JsonMsgEncoder();
-            protocol = new JsonMsgProtocol(SocketChannel.open(addr),encoder);
-            
-            Thread t = new Thread(new Runnable() {
+			Thread t = new Thread(new Runnable() {
 
 				@Override
 				public void run() {
 					try {
 						protocol.readMsg();
 					} catch (IOException e) {
+//						System.out.printf("channel closed: %s", e);
 						e.printStackTrace();
 					}
 				}
-            	
-            });
-            
-            t.setDaemon(true);
-            t.start();
- 
-            test();
-            
-            Thread.sleep(2000);
-        }catch (IOException e){
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+
+			});
+
+//			t.setDaemon(true);
+			t.start();
+
+			test();
+
+			Thread.sleep(1000);
+		} catch (IOException e) {
 			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} finally {
+			if (channel != null) {
+				channel.close();
+			}
 		}
-    }
+	}
 
-    public void test() throws IOException {
-        JSONObject json = new JSONObject();
-        json.put("type","login");
-        json.put("pid","wen");
-        json.put("passwd","123");
-        protocol.writeMsg(json);
-    }
+	public void test() throws IOException {
+		JSONObject json = new JSONObject();
+		json.put("type", "login");
+		json.put("pid", "wen");
+		json.put("passwd", "123");
+		protocol.writeMsg(json);
+	}
 
-    public static void main(String[] args){
-        new Main();
-    }
+	public static void main(String[] args) throws IOException {
+		new Main().connect();
+	}
 }

@@ -6,8 +6,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
 
 /**
- * 1，把从SocketChannel读出的字节流，变成一个个的Message。 
- * 2，把Message编码成字节流写入SocketChannel。
+ * 1，把从SocketChannel读出的字节流，变成一个个的Message。 2，把Message编码成字节流写入SocketChannel。
  * 3，Message结构为：head(4byte,value=length(body)) + body(byte[])
  * 
  * 我这个实现方法，是最简单明了的，复杂的我晕！
@@ -26,6 +25,8 @@ public abstract class AMsgProtocol {
 
 	/**
 	 * keep reading msg forever
+	 * 
+	 * @throws IOException
 	 */
 	public void readMsg() throws IOException {
 		final int BUF_LEN = 1024 * 6;
