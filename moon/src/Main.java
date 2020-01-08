@@ -1,43 +1,31 @@
-import java.net.Socket;
+
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.io.IOException;
 import java.nio.channels.SocketChannel;
-import com.alibaba.fastjson.JSONObject;
-import java.util.concurrent.locks.*;
+import pb.Msgs;
 
-public class Main{
-    private SockReading sr;
+public class Main {
+	
+	public void connect1() throws IOException, InterruptedException {
+		SocketAddress addr = new InetSocketAddress("localhost", 20000);
+		SocketChannel channel = SocketChannel.open(addr);
+		PbMsgProtocol pbProtocol = new PbMsgProtocol(channel);
+		
+		Msgs.Msg.Builder mb = Msgs.Msg.newBuilder();
+		mb.setName("wen");
+		mb.setAge(40);
 
-    public Main(){
-        try{
-            SocketAddress addr = new InetSocketAddress("localhost",20000);
-            sr = new SockReading(SocketChannel.open(addr));
+		Msgs.Msg message = mb.build();
+		
+		System.out.println(message);
+		
+		pbProtocol.writeMsg(message);
+		pbProtocol.readMsg();
+	}
 
-            Thread t = new Thread(sr);
-            t.setDaemon(true);
-            t.start();
-
-            test();
-            
-            Thread.sleep(2000);
-
-        }catch (IOException e){
-            e.printStackTrace();
-        }catch (InterruptedException e){
-            e.printStackTrace();
-        }
-    }
-
-    public void test() throws IOException {
-        JSONObject json = new JSONObject();
-        json.put("type","login");
-        json.put("pid","wen");
-        json.put("passwd","123");
-        sr.sendMsg(json);
-    }
-
-    public static void main(String[] args){
-        new Main();
-    }
+	public static void main(String[] args) throws IOException, InterruptedException {
+		new Main().connect1();
+	}
 }

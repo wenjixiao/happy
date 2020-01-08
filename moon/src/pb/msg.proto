@@ -1,0 +1,10 @@
+syntax="proto3";
+
+package pb;
+
+option java_outer_classname = "Msgs";
+
+message Msg {
+    string name = 1;
+    uint32 age = 2;
+}
