@@ -106,7 +106,6 @@ func (context *Context) MainLoop() {
 			//---------------------------------------------
 			case pb.Type_LOGOUT:
 				protocol.Player = nil
-				//---------------------------------------------
 			}
 		//=========================================================
 		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
@@ -117,7 +116,6 @@ func (context *Context) MainLoop() {
 			} else {
 				context.RemoveProtocol(opProtocol.Protocol)
 			}
-			//=========================================================
 		} // select ended
 	}
 	log.Println("----main service exit!----")

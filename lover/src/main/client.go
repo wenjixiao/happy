@@ -75,7 +75,8 @@ func main() {
 		log.Fatalf("connect error: %v", err)
 	}
 
-	protocol := &ClientProtocol{Conn: conn}
+	protocol := &ClientProtocol{}
+	protocol.Conn = conn
 	protocol.Receiver = protocol
 
 	go mynet.HandleConn(conn, protocol)

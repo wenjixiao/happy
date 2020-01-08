@@ -77,11 +77,11 @@ func HandleConn(conn net.Conn, protocol Protocol) {
 		if err != nil {
 			if err == io.EOF {
 				log.Println("conn closed")
-				//conn被关闭。正常退出！
+				// conn closed, means normal exit
 				protocol.ConnectionLost(nil)
 			} else {
 				log.Printf("conn read: %v\n", err)
-				//异常退出
+				// something happened,exception
 				protocol.ConnectionLost(err)
 			}
 			break
