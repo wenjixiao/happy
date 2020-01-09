@@ -8,24 +8,28 @@ import pb.Msgs;
 
 public class Main {
 	
-	public void connect1() throws IOException, InterruptedException {
+	public void connect() throws IOException, InterruptedException {
 		SocketAddress addr = new InetSocketAddress("localhost", 20000);
 		SocketChannel channel = SocketChannel.open(addr);
-		PbMsgProtocol pbProtocol = new PbMsgProtocol(channel);
+		PbMsgProtocol protocol = new PbMsgProtocol(channel);
+
+		Msgs.Login.Builder loginBuilder = Msgs.Login.newBuilder();
+		loginBuilder.setPid("wen");
+		loginBuilder.setPassword("123");
 		
 		Msgs.Msg.Builder mb = Msgs.Msg.newBuilder();
-		mb.setName("wen");
-		mb.setAge(40);
+		mb.setType(Msgs.Type.LOGIN);
+		mb.setLogin(loginBuilder);
 
 		Msgs.Msg message = mb.build();
 		
 		System.out.println(message);
 		
-		pbProtocol.writeMsg(message);
-		pbProtocol.readMsg();
+		protocol.writeMsg(message);
+		protocol.readMsg();
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		new Main().connect1();
+		new Main().connect();
 	}
 }

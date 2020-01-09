@@ -4,7 +4,24 @@ package pb;
 
 option java_outer_classname = "Msgs";
 
+enum Type {
+    LOGIN = 0;
+    LOGIN_RESULT = 1;
+}
+
 message Msg {
-    string name = 1;
-    uint32 age = 2;
+    Type type = 1;
+    oneof union {
+        Login login = 2;
+        LoginResult loginResult = 3;
+    }
+}
+
+message Login {
+    string pid = 1;
+    string password = 2;
+}
+
+message LoginResult {
+    bool success = 1;
 }

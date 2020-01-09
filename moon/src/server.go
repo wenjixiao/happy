@@ -100,8 +100,13 @@ func (context *Context) MainLoop() {
 		select {
 		//=========================================================
 		case message := <-context.Messages:
+			msg,protocol := message.Msg,message.Protocol
 			log.Println(message.Msg)
-			SendMsg(message.Protocol.Conn,message.Msg)
+			switch(msg.GetType()){
+			case pb.Type_LOGIN:
+				log.Println("****hehe****")
+				SendMsg(protocol.Conn,msg)
+			}
 		//=========================================================
 		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
 		// 全部交给主线处理，简单明了，不会出错。
