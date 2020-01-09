@@ -8,7 +8,7 @@ import pb.Msgs;
 
 public class Main {
 	
-	public void connect() throws IOException, InterruptedException {
+	public void connect() throws IOException {
 		SocketAddress addr = new InetSocketAddress("localhost", 20000);
 		SocketChannel channel = SocketChannel.open(addr);
 		PbMsgProtocol protocol = new PbMsgProtocol(channel);
@@ -24,12 +24,13 @@ public class Main {
 		Msgs.Msg message = mb.build();
 		
 		System.out.println(message);
-		
+
 		protocol.writeMsg(message);
 		protocol.readMsg();
 	}
 
-	public static void main(String[] args) throws IOException, InterruptedException {
+	public static void main(String[] args) throws IOException {
 		new Main().connect();
 	}
+
 }

@@ -6,10 +6,11 @@ import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
 
 /**
- * 1£¬°Ñ´ÓSocketChannel¶Á³öµÄ×Ö½ÚÁ÷£¬±ä³ÉÒ»¸ö¸öµÄMessage¡£ 2£¬°ÑMessage±àÂë³É×Ö½ÚÁ÷Ğ´ÈëSocketChannel¡£
- * 3£¬Message½á¹¹Îª£ºhead(4byte,value=length(body)) + body(byte[])
+ * 1ï¼ŒæŠŠä»SocketChannelè¯»å‡ºçš„å­—èŠ‚æµï¼Œå˜æˆä¸€ä¸ªä¸ªçš„Messageã€‚
+ * 2ï¼ŒæŠŠMessageç¼–ç æˆå­—èŠ‚æµå†™å…¥SocketChannelã€‚
+ * 3ï¼ŒMessageç»“æ„ä¸ºï¼šhead(4byte,value=length(body)) + body(byte[])
  * 
- * ÎÒÕâ¸öÊµÏÖ·½·¨£¬ÊÇ×î¼òµ¥Ã÷ÁËµÄ£¬¸´ÔÓµÄÎÒÔÎ£¡
+ * æˆ‘è¿™ä¸ªå®ç°æ–¹æ³•ï¼Œæ˜¯æœ€ç®€å•æ˜äº†çš„ï¼Œå¤æ‚çš„æˆ‘æ™•ï¼
  * 
  * @author wenjixiao
  *

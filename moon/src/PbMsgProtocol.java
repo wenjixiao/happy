@@ -10,7 +10,6 @@ public class PbMsgProtocol extends AMsgProtocol {
 
 	public PbMsgProtocol(SocketChannel channel) {
 		super(channel);
-		// TODO Auto-generated constructor stub
 	}
 
 	@Override
@@ -19,7 +18,6 @@ public class PbMsgProtocol extends AMsgProtocol {
 			Msgs.Msg msg = Msgs.Msg.parseFrom(data);
 			System.out.println(msg);
 		} catch (InvalidProtocolBufferException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

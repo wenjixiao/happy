@@ -105,7 +105,8 @@ func (context *Context) MainLoop() {
 			switch(msg.GetType()){
 			case pb.Type_LOGIN:
 				log.Println("****hehe****")
-				SendMsg(protocol.Conn,msg)
+				loginResult := &pb.Msg{Type: pb.Type_LOGIN_RESULT,Union: &pb.Msg_LoginResult{&pb.LoginResult{Success: true}}}
+				SendMsg(protocol.Conn,loginResult)
 			}
 		//=========================================================
 		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
