@@ -11,7 +11,7 @@ public class Main {
 	public void connect() throws IOException {
 		SocketAddress addr = new InetSocketAddress("localhost", 20000);
 		SocketChannel channel = SocketChannel.open(addr);
-		PbMsgProtocol protocol = new PbMsgProtocol(channel);
+		ClientMsgProtocol protocol = new ClientMsgProtocol(channel);
 
 		Msgs.Login.Builder loginBuilder = Msgs.Login.newBuilder();
 		loginBuilder.setPid("wen");

@@ -6,9 +6,9 @@ import pb.Msgs;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class PbMsgProtocol extends AMsgProtocol {
+public class ClientMsgProtocol extends AMsgProtocol {
 
-	public PbMsgProtocol(SocketChannel channel) {
+	public ClientMsgProtocol(SocketChannel channel) {
 		super(channel);
 	}
 
@@ -16,7 +16,7 @@ public class PbMsgProtocol extends AMsgProtocol {
 	public void processMsg(byte[] data) {
 		try {
 			Msgs.Msg msg = Msgs.Msg.parseFrom(data);
-			System.out.println(msg);
+			System.out.printf("client get msg: %s",msg);
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
 		}
