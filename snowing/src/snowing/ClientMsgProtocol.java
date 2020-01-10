@@ -3,19 +3,45 @@ package snowing;
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
-import snowing.commands.ACommand;
-import snowing.commands.IRunOnClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import snowing.messages.LoginFail;
+import snowing.messages.LoginOk;
+import snowing.messages.Message;
 
 public class ClientMsgProtocol extends AMsgProtocol {
+	private Client client;
 
-	public ClientMsgProtocol(SocketChannel channel) {
+	public ClientMsgProtocol(Client client,SocketChannel channel) {
 		super(channel);
+		this.client = client;
+	}
+	
+	public Client getClient() {
+		return client;
 	}
 
 	@Override
 	public void processMsg(byte[] data) throws IOException, ClassNotFoundException {
-		IRunOnClient cmd = (IRunOnClient) ACommand.decode(data);
-		cmd.run(this);
+		ObjectMapper mapper = getClient().getMapper();
+		JsonNode rootNode = mapper.readTree(data);
+		System.out.printf("client get msg: %s\n", rootNode);
+		Message.Type type = mapper.treeToValue(rootNode.get("type"), Message.Type.class);
+		JsonNode msgNode = rootNode.get("msg");
+
+		switch (type) {
+		case LoginOk:
+			LoginOk loginOk = mapper.treeToValue(msgNode, LoginOk.class);
+			System.out.println(loginOk);
+			break;
+		case LoginFail:
+			LoginFail loginFail = mapper.treeToValue(msgNode, LoginFail.class);
+			System.out.println(loginFail);
+			break;
+		default:
+			System.out.println("hoho");
+		}
 	}
 
 }

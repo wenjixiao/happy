@@ -8,16 +8,24 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import snowing.domain.Player;
 
 public class Server {
+	private ObjectMapper mapper;
 	private List<Player> players;
 	private List<ServerMsgProtocol> protocols;
 
 	public Server() {
+		mapper = new ObjectMapper();
 		players = new ArrayList<Player>();
 		protocols = new ArrayList<ServerMsgProtocol>();
 		initPlayers();
+	}
+	
+	public ObjectMapper getMapper() {
+		return mapper;
 	}
 
 	public void addProtocol(ServerMsgProtocol protocol) {

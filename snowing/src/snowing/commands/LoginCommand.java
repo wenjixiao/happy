@@ -31,7 +31,7 @@ public class LoginCommand extends ACommand implements IRunOnServer {
 	public void run(ServerMsgProtocol protocol) throws IOException {
 		Server server = protocol.getServer();
 		Player p = server.getPlayer(pid, password);
-		System.out.printf("player login command: %s",p);
+		System.out.printf("player login command: %s\n",p);
 		if(p != null) {
 			protocol.setPlayer(p);
 			server.addProtocol(protocol);
