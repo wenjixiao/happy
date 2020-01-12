@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"mynet"
+	"mynet/encoder/pbencoder"
 	"net"
 	"pb"
 )
@@ -78,7 +79,7 @@ func (context *Context) MainLoop() {
 			case pb.Type_LOGIN:
 				log.Println("****hehe****")
 				loginResult := &pb.Msg{Type: pb.Type_LOGIN_RESULT,Union: &pb.Msg_LoginResult{&pb.LoginResult{Success: true}}}
-				SendMsg(protocol.Conn,loginResult)
+				pbencoder.SendMsg(protocol.Conn,loginResult)
 			}
 		//=========================================================
 		// protocol不光有add和remove，还有查询遍历之类的处理，所以，*不能用锁*！
@@ -110,7 +111,7 @@ func (sp *ServerProtocol) ConnectionLost(err error) {
 // override MsgProcessor
 func (sp *ServerProtocol) ProcessMsg(msgBytes []byte) {
 	log.Println("get msg")
-	sp.Context.Messages <- &Message{DecodeMsg(msgBytes), sp}
+	sp.Context.Messages <- &Message{pbencoder.DecodeMsg(msgBytes), sp}
 }
 
 //---------------------------------------------------------

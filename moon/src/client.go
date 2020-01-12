@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"mynet"
+	"mynet/encoder/pbencoder"
 	"net"
 	"os"
 	"pb"
@@ -22,7 +23,7 @@ func (protocol *ClientProtocol) ConnectionMade(conn net.Conn) {
 }
 
 func (protocol *ClientProtocol) ProcessMsg(msgBytes []byte) {
-	msg := DecodeMsg(msgBytes)
+	msg := pbencoder.DecodeMsg(msgBytes)
 	log.Printf("protocol received: %v", msg)
 	switch msg.GetType() {
 	case pb.Type_LOGIN_RESULT:
@@ -50,7 +51,7 @@ func CmdLoop(protocol *ClientProtocol) {
 		if cmd == "login" {
 			pid, password := params[0], params[1]
 			msg := &pb.Msg{Type: pb.Type_LOGIN, Union: &pb.Msg_Login{&pb.Login{Pid: pid, Password: password}}}
-			SendMsg(protocol.Conn, msg)
+			pbencoder.SendMsg(protocol.Conn, msg)
 		} else if cmd == "exit" {
 			//我关闭conn的时候，reading goroutine自然会退出，因为它在一直读那个conn
 			protocol.Conn.Close()
