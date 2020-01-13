@@ -1,6 +1,6 @@
 package snowing.commands;
 
-import snowing.ClientMsgProtocol;
+import snowing.protocols.JsonClientMsgProtocol;
 
 public class LoginResultCommand extends ACommand implements IRunOnClient {
 
@@ -17,7 +17,7 @@ public class LoginResultCommand extends ACommand implements IRunOnClient {
 	}
 
 	@Override
-	public void run(ClientMsgProtocol protocol) {
+	public void run(JsonClientMsgProtocol protocol) {
 		System.out.printf("login result: %s",success);
 	}
 

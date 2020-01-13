@@ -2,8 +2,8 @@ package snowing.commands;
 
 import java.io.IOException;
 
-import snowing.ServerMsgProtocol;
+import snowing.protocols.JsonServerMsgProtocol;
 
 public interface IRunOnServer {
-	public void run(ServerMsgProtocol protocol) throws IOException;
+	public void run(JsonServerMsgProtocol protocol) throws IOException;
 }

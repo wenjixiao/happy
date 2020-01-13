@@ -1,7 +1,7 @@
 package snowing.commands;
 
-import snowing.ClientMsgProtocol;
+import snowing.protocols.JsonClientMsgProtocol;
 
 public interface IRunOnClient {
-	public void run(ClientMsgProtocol protocol);
+	public void run(JsonClientMsgProtocol protocol);
 }

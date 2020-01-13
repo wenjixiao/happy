@@ -3,8 +3,8 @@ package snowing.commands;
 import java.io.IOException;
 
 import snowing.Server;
-import snowing.ServerMsgProtocol;
 import snowing.domain.Player;
+import snowing.protocols.JsonServerMsgProtocol;
 
 public class LoginCommand extends ACommand implements IRunOnServer {
 	private static final long serialVersionUID = 1L;
@@ -28,7 +28,7 @@ public class LoginCommand extends ACommand implements IRunOnServer {
 	}
 
 	@Override
-	public void run(ServerMsgProtocol protocol) throws IOException {
+	public void run(JsonServerMsgProtocol protocol) throws IOException {
 		Server server = protocol.getServer();
 		Player p = server.getPlayer(pid, password);
 		System.out.printf("player login command: %s\n",p);

@@ -11,16 +11,18 @@ import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import snowing.domain.Player;
+import snowing.protocols.JsonServerMsgProtocol;
+import snowing.protocols.PbServerMsgProtocol;
 
 public class Server {
 	private ObjectMapper mapper;
 	private List<Player> players;
-	private List<ServerMsgProtocol> protocols;
+	private List<JsonServerMsgProtocol> protocols;
 
 	public Server() {
 		mapper = new ObjectMapper();
 		players = new ArrayList<Player>();
-		protocols = new ArrayList<ServerMsgProtocol>();
+		protocols = new ArrayList<JsonServerMsgProtocol>();
 		initPlayers();
 	}
 	
@@ -28,7 +30,7 @@ public class Server {
 		return mapper;
 	}
 
-	public void addProtocol(ServerMsgProtocol protocol) {
+	public void addProtocol(JsonServerMsgProtocol protocol) {
 		protocols.removeIf(p->p.getPlayer().equals(protocol.getPlayer()));
 		protocols.add(protocol);
 	}
@@ -66,17 +68,15 @@ public class Server {
 		serverChannel.socket().bind(new InetSocketAddress(20000));
 		while (true) {
 			SocketChannel channel = serverChannel.accept();
-			ServerMsgProtocol protocol = new ServerMsgProtocol(this, channel);
+			PbServerMsgProtocol protocol = new PbServerMsgProtocol(this, channel);
 			new Thread(new Runnable() {
 
 				@Override
 				public void run() {
 					try {
 						protocol.readMsg();
-					} catch (IOException e) {
-						System.out.printf("thread exit: %s\n", e.getMessage());
-					} catch (ClassNotFoundException e) {
-						System.out.printf("thread exit: %s\n", e.getMessage());
+					} catch (Exception e)  {
+						e.printStackTrace();
 					}
 				}
 
