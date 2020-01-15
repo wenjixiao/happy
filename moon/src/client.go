@@ -73,7 +73,7 @@ func main() {
 
 	protocol := &ClientProtocol{}
 	protocol.Conn = conn
-	protocol.Receiver = protocol
+	protocol.MsgReceiver = protocol
 
 	go mynet.HandleConn(conn, protocol)
 

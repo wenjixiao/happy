@@ -64,7 +64,7 @@ func (context *Context) RemoveProtocol(protocol *ServerProtocol) bool {
 func (context *Context) CreateProtocol() mynet.Protocol {
 	protocol := &ServerProtocol{}
 	protocol.Context = context
-	protocol.Receiver = protocol
+	protocol.MsgReceiver = protocol
 	return protocol
 }
 

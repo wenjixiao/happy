@@ -10,11 +10,7 @@ import (
 
 const HeaderSize = 4
 
-func AddHeader(msgBytes []byte) []byte {
-	head := make([]byte, HeaderSize)
-	binary.LittleEndian.PutUint32(head, uint32(len(msgBytes)))
-	return append(head, msgBytes...)
-}
+//-----------------------------------------------------------------------------
 
 type Protocol interface {
 	ConnectionMade(conn net.Conn)
@@ -30,9 +26,11 @@ type ProtocolFactory interface {
 	CreateProtocol() Protocol
 }
 
+//-----------------------------------------------------------------------------
+
 type MsgProtocol struct {
 	Protocol
-	Receiver MsgReceiver
+	MsgReceiver
 	msgBuf   bytes.Buffer
 	head     uint32
 	bodyLen  int
@@ -53,7 +51,7 @@ func (mp *MsgProtocol) DataReceived(data []byte) {
 		}
 		//has head,now read body
 		if mp.bodyLen > 0 && mp.msgBuf.Len() >= mp.bodyLen {
-			mp.Receiver.ProcessMsg(mp.msgBuf.Next(mp.bodyLen))
+			mp.ProcessMsg(mp.msgBuf.Next(mp.bodyLen))
 			mp.bodyLen = 0
 		} else {
 			//msgBuf.Len() < bodyLen ,one pb receiving is not complete
@@ -62,6 +60,8 @@ func (mp *MsgProtocol) DataReceived(data []byte) {
 		}
 	}
 }
+
+//-----------------------------------------------------------------------------
 
 func HandleConn(conn net.Conn, protocol Protocol) {
 	defer conn.Close()
@@ -92,11 +92,11 @@ func HandleConn(conn net.Conn, protocol Protocol) {
 
 func ListenForever(addr string, protocolFactory ProtocolFactory) {
 	listener, err := net.Listen("tcp", addr)
-	defer listener.Close()
-
 	if err != nil {
 		log.Fatalf("listener: %v", err)
 	}
+
+	defer listener.Close()
 
 	for {
 		conn, err := listener.Accept()
@@ -106,4 +106,12 @@ func ListenForever(addr string, protocolFactory ProtocolFactory) {
 		go HandleConn(conn, protocolFactory.CreateProtocol())
 	}
 	log.Println("----listenForever exit!----")
+}
+
+//-----------------------------------------------------------------------------
+
+func AddHeader(msgBytes []byte) []byte {
+	head := make([]byte, HeaderSize)
+	binary.LittleEndian.PutUint32(head, uint32(len(msgBytes)))
+	return append(head, msgBytes...)
 }
