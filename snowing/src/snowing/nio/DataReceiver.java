@@ -19,7 +19,7 @@ public abstract class DataReceiver {
 		buf = ByteBuffer.allocate(BUF_LEN);
 	}
 
-	public void receiveData(ByteBuffer buffer) throws InvalidProtocolBufferException {
+	public void receiveData(ByteBuffer buffer) throws IOException {
 		buf.put(buffer);
 		buf.flip();
 
@@ -40,7 +40,7 @@ public abstract class DataReceiver {
 				if (buf.remaining() >= bodyLen) {
 					byte[] body = new byte[bodyLen];
 					buf = buf.get(body);
-					processData(body);
+					processMsg(body);
 					bodyLen = 0;
 				}
 				break;
@@ -65,6 +65,6 @@ public abstract class DataReceiver {
 		channel.write(buf);
 	}
 
-	public abstract void processData(byte[] data);
+	public abstract void processMsg(byte[] data) throws IOException;
 
 }

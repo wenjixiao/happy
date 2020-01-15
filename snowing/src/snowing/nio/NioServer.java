@@ -7,9 +7,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Iterator;
-
-import snowing.messages.pb.Msgs;
+import java.util.List;
 
 public class NioServer {
 
@@ -21,6 +21,12 @@ public class NioServer {
 			e.printStackTrace();
 		}
 	}
+
+	public NioServer() {
+		clientKeys = new ArrayList<SelectionKey>();
+	}
+
+	private List<SelectionKey> clientKeys;
 
 	public void startServer(String serverIp, int serverPort) throws IOException {
 		ServerSocketChannel serviceChannel = ServerSocketChannel.open();
@@ -40,36 +46,27 @@ public class NioServer {
 						ServerSocketChannel server = (ServerSocketChannel) key.channel();
 						SocketChannel channel = server.accept();
 						channel.configureBlocking(false);
+						
 						SelectionKey clientKey = channel.register(selector, SelectionKey.OP_READ);
-						clientKey.attach(new KeyData());
+						Protocol protocol = new Protocol(this,clientKey);
+						clientKey.attach(protocol);
+						
+						clientKeys.add(clientKey);
 					} else if (key.isReadable()) {
 						SocketChannel channel = (SocketChannel) key.channel();
 						ByteBuffer buffer = ByteBuffer.allocate(1024);
 						channel.read(buffer);
 						buffer.flip();
 
-						KeyData keyData = (KeyData) key.attachment();
-						keyData.getDataReceiver().receiveData(buffer);
-
-						Msgs.Msg.Builder mb = Msgs.Msg.newBuilder();
-						mb.setType(Msgs.Type.LOGIN_RESULT);
-						mb.getLoginResultBuilder().setSuccess(true);
-						keyData.setMsgBody(mb.build().toByteArray());
-
-						key.interestOps(SelectionKey.OP_WRITE);
-					} else if (key.isWritable()) {
-						KeyData keyData = (KeyData) key.attachment();
-						byte[] msgBody = keyData.getMsgBody();
-						if (msgBody != null) {
-							SocketChannel channel = (SocketChannel) key.channel();
-							DataReceiver.writeMsg(channel, msgBody);
-							keyData.setMsgBody(null);
-						}
-						key.interestOps(SelectionKey.OP_READ);
+						Protocol protocol = (Protocol) key.attachment();
+						protocol.receiveData(buffer);
 					}
 				} catch (IOException e) {
+					e.printStackTrace();
 					key.cancel();
 					key.channel().close();
+					clientKeys.remove(key);
+					System.out.println("****exit****");
 				}
 			}
 		}

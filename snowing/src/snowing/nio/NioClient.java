@@ -14,7 +14,8 @@ public class NioClient {
 	}
 
 	public void connect(String serverIp, int serverPort) {
-		try (SocketChannel channel = SocketChannel.open(new InetSocketAddress(serverIp, serverPort))) {
+		try {
+			SocketChannel channel = SocketChannel.open(new InetSocketAddress(serverIp, serverPort));
 			Msgs.Msg.Builder mb = Msgs.Msg.newBuilder();
 			mb.setType(Msgs.Type.LOGIN);
 			mb.getLoginBuilder().setPid("wen");
@@ -29,7 +30,13 @@ public class NioClient {
 			ClientDataReceiver dataReceiver = new ClientDataReceiver();
 			dataReceiver.receiveData(buffer);
 			
+			channel.close();
+			Thread.sleep(6000);
+			System.out.println("----client exit----");
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
