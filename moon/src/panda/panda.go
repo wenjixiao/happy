@@ -8,20 +8,6 @@ import (
 	"pb"
 )
 
-type Operation int
-
-const (
-	AddProtocol Operation = iota
-	RemoveProtocol
-)
-
-//---------------------------------------------------------
-
-type Actor interface {
-	Run()
-}
-
-//---------------------------------------------------------
 
 var MyMsgSender *MsgSender
 var MyProtocolsManager *ProtocolsManager
@@ -81,20 +67,27 @@ type myPidMsg struct {
 	msg *pb.Msg
 }
 
+type myProtocolPlayer struct {
+	protocol *ServerProtocol
+	player *pb.Player
+}
+
 type ProtocolsManager struct {
 	Protocols          []*ServerProtocol
 	AddProtocolChan    chan *ServerProtocol
 	RemoveProtocolChan chan *ServerProtocol
+	ChangeProtocolChan chan *myProtocolPlayer
 	PidMsgChan         chan *myPidMsg
-	WithoutPidMsgChan  chan *myPidMsg
+	BesidesPidMsgChan  chan *myPidMsg
 }
 
 func NewProtocolsManager() *ProtocolsManager {
 	mypm := &ProtocolsManager{
 		AddProtocolChan:    make(chan *ServerProtocol, 6),
 		RemoveProtocolChan: make(chan *ServerProtocol, 6),
+		ChangeProtocolChan: make(chan *myProtocolPlayer, 6),
 		PidMsgChan:         make(chan *myPidMsg, 6),
-		WithoutPidMsgChan:  make(chan *myPidMsg, 6)}
+		BesidesPidMsgChan:  make(chan *myPidMsg, 6)}
 	go mypm.Run()
 	return mypm
 }
@@ -107,12 +100,16 @@ func (pm *ProtocolsManager) RemoveProtocol(p *ServerProtocol) {
 	pm.RemoveProtocolChan <- p
 }
 
+func (pm *ProtocolsManager) ChangeProtocol(protocol *ServerProtocol,player *pb.Player){
+	pm.ChangeProtocolChan <- &myProtocolPlayer{protocol,player}
+}
+
 func (pm *ProtocolsManager) SendPidMsg(pid string, msg *pb.Msg) {
 	pm.PidMsgChan <- &myPidMsg{pid, msg}
 }
 
 func (pm *ProtocolsManager) SendWithoutPidMsg(pid string, msg *pb.Msg) {
-	pm.WithoutPidMsgChan <- &myPidMsg{pid, msg}
+	pm.BesidesPidMsgChan <- &myPidMsg{pid, msg}
 }
 
 func (pm *ProtocolsManager) Run() {
@@ -126,14 +123,21 @@ func (pm *ProtocolsManager) Run() {
 				pm.Protocols = newProtocols
 			}
 
+		case protocolPlayer := <-pm.ChangeProtocolChan:
+			for _, p := range pm.Protocols {
+				if p == protocolPlayer.protocol {
+					p.Player = protocolPlayer.player
+				}
+			}
+
 		case pidMsg := <-pm.PidMsgChan:
 			for _, protocol := range pm.Protocols {
 				if protocol.Player.Pid == pidMsg.pid {
 					MyMsgSender.SendMsg(protocol.Conn, pidMsg.msg)
 				}
 			}
-			
-		case withoutPidMsg := <-pm.WithoutPidMsgChan:
+
+		case withoutPidMsg := <-pm.BesidesPidMsgChan:
 			for _, protocol := range pm.Protocols {
 				if protocol.Player.Pid != withoutPidMsg.pid {
 					MyMsgSender.SendMsg(protocol.Conn, withoutPidMsg.msg)
