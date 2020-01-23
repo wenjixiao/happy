@@ -8,20 +8,17 @@ import (
 	"pb"
 )
 
-
-var MyMsgSender *MsgSender
-var MyProtocolsManager *ProtocolsManager
-var MyGamesManager *GamesManager
-
-//---------------------------------------------------------
+var msgSenderService *MsgSenderService
+var protocolsService *ProtocolsService
+var gamesService *GamesService
 
 func init() {
-	MyMsgSender = NewMsgSender()
-	MyProtocolsManager = NewProtocolsManager()
-	MyGamesManager = NewGamesManager()
+	msgSenderService = NewMsgSenderService()
+	protocolsService = NewProtocolsService()
+	gamesService = NewGamesService()
 }
 
-//---------------------------------------------------------
+//=============================================================================
 
 type ServerProtocol struct {
 	mynet.MsgProtocol
@@ -32,14 +29,14 @@ type ServerProtocol struct {
 func (sp *ServerProtocol) ConnectionMade(conn net.Conn) {
 	log.Printf("connection made: %v", conn.RemoteAddr())
 	sp.Conn = conn
-	MyProtocolsManager.AddProtocol(sp)
+	protocolsService.IAddProtocol(sp)
 }
 
 func (sp *ServerProtocol) ConnectionLost(err error) {
 	log.Printf("connection lost: %v", err)
-	MyProtocolsManager.RemoveProtocol(sp)
+	protocolsService.IRemoveProtocol(sp)
 	if sp.Player != nil {
-		MyGamesManager.PlayerLinebroken(sp.Player)
+		gamesService.IPlayerLinebroken(sp.Player)
 	}
 }
 
@@ -50,17 +47,17 @@ func (sp *ServerProtocol) ProcessMsg(msgBytes []byte) {
 	switch msg.GetType() {
 	case pb.Msg_LoginType:
 		player := &pb.Player{Pid: msg.GetLogin().GetPid()}
-		MyProtocolsManager.ChangeProtocol(sp,player)
+		protocolsService.IChangeProtocol(sp, player)
 
 		// linebroken,now come back
-		MyGamesManager.PlayerComeback(player)
+		gamesService.IPlayerComeback(player)
 
 		loginResult := &pb.Msg{Type: pb.Msg_LoginResultType, Union: &pb.Msg_LoginResult{&pb.LoginResult{Success: true}}}
-		MyProtocolsManager.SendPidMsg(player.GetPid(), loginResult)
+		protocolsService.ISendPidMsg(player.GetPid(), loginResult)
 	}
 }
 
-//---------------------------------------------------------
+//=============================================================================
 
 type ProtocolFactory struct{}
 
@@ -70,7 +67,7 @@ func (pf *ProtocolFactory) CreateProtocol() mynet.Protocol {
 	return protocol
 }
 
-//---------------------------------------------------------
+//=============================================================================
 
 type myPidMsg struct {
 	pid string
@@ -79,85 +76,85 @@ type myPidMsg struct {
 
 type myProtocolPlayer struct {
 	protocol *ServerProtocol
-	player *pb.Player
+	player   *pb.Player
 }
 
-type ProtocolsManager struct {
+type ProtocolsService struct {
 	Protocols          []*ServerProtocol
 	AddProtocolChan    chan *ServerProtocol
 	RemoveProtocolChan chan *ServerProtocol
 	ChangeProtocolChan chan *myProtocolPlayer
 	PidMsgChan         chan *myPidMsg
-	BesidesPidMsgChan  chan *myPidMsg
+	ExPidMsgChan       chan *myPidMsg
 }
 
-func NewProtocolsManager() *ProtocolsManager {
-	mypm := &ProtocolsManager{
+func NewProtocolsService() *ProtocolsService {
+	myps := &ProtocolsService{
 		AddProtocolChan:    make(chan *ServerProtocol, 6),
 		RemoveProtocolChan: make(chan *ServerProtocol, 6),
 		ChangeProtocolChan: make(chan *myProtocolPlayer, 6),
 		PidMsgChan:         make(chan *myPidMsg, 6),
-		BesidesPidMsgChan:  make(chan *myPidMsg, 6)}
-	go mypm.Run()
-	return mypm
+		ExPidMsgChan:       make(chan *myPidMsg, 6)}
+	go myps.Run()
+	return myps
 }
 
-func (pm *ProtocolsManager) AddProtocol(p *ServerProtocol) {
-	pm.AddProtocolChan <- p
+func (ps *ProtocolsService) IAddProtocol(p *ServerProtocol) {
+	ps.AddProtocolChan <- p
 }
 
-func (pm *ProtocolsManager) RemoveProtocol(p *ServerProtocol) {
-	pm.RemoveProtocolChan <- p
+func (ps *ProtocolsService) IRemoveProtocol(p *ServerProtocol) {
+	ps.RemoveProtocolChan <- p
 }
 
-func (pm *ProtocolsManager) ChangeProtocol(protocol *ServerProtocol,player *pb.Player){
-	pm.ChangeProtocolChan <- &myProtocolPlayer{protocol,player}
+func (ps *ProtocolsService) IChangeProtocol(protocol *ServerProtocol, player *pb.Player) {
+	ps.ChangeProtocolChan <- &myProtocolPlayer{protocol, player}
 }
 
-func (pm *ProtocolsManager) SendPidMsg(pid string, msg *pb.Msg) {
-	pm.PidMsgChan <- &myPidMsg{pid, msg}
+func (ps *ProtocolsService) ISendPidMsg(pid string, msg *pb.Msg) {
+	ps.PidMsgChan <- &myPidMsg{pid, msg}
 }
 
-func (pm *ProtocolsManager) SendWithoutPidMsg(pid string, msg *pb.Msg) {
-	pm.BesidesPidMsgChan <- &myPidMsg{pid, msg}
+func (ps *ProtocolsService) ISendExPidMsg(pid string, msg *pb.Msg) {
+	ps.ExPidMsgChan <- &myPidMsg{pid, msg}
 }
 
-func (pm *ProtocolsManager) Run() {
+func (ps *ProtocolsService) Run() {
 	for {
 		select {
-		case protocol := <-pm.AddProtocolChan:
-			pm.Protocols = append(pm.Protocols, protocol)
+		case protocol := <-ps.AddProtocolChan:
+			ps.Protocols = append(ps.Protocols, protocol)
 
-		case protocol := <-pm.RemoveProtocolChan:
-			pm.implRemoveProtocol(protocol)
+		case protocol := <-ps.RemoveProtocolChan:
+			ps.removeProtocol(protocol)
 
-		case protocolPlayer := <-pm.ChangeProtocolChan:
-			for _, p := range pm.Protocols {
+		case protocolPlayer := <-ps.ChangeProtocolChan:
+			for _, p := range ps.Protocols {
 				if p == protocolPlayer.protocol {
 					p.Player = protocolPlayer.player
 				}
 			}
 
-		case pidMsg := <-pm.PidMsgChan:
-			for _, protocol := range pm.Protocols {
+		case pidMsg := <-ps.PidMsgChan:
+			for _, protocol := range ps.Protocols {
 				if protocol.Player.Pid == pidMsg.pid {
-					MyMsgSender.SendMsg(protocol.Conn, pidMsg.msg)
+					msgSenderService.ISendMsg(protocol.Conn, pidMsg.msg)
 				}
 			}
 
-		case withoutPidMsg := <-pm.BesidesPidMsgChan:
-			for _, protocol := range pm.Protocols {
+		case withoutPidMsg := <-ps.ExPidMsgChan:
+			for _, protocol := range ps.Protocols {
 				if protocol.Player.Pid != withoutPidMsg.pid {
-					MyMsgSender.SendMsg(protocol.Conn, withoutPidMsg.msg)
+					msgSenderService.ISendMsg(protocol.Conn, withoutPidMsg.msg)
 				}
 			}
 		}
 	}
 }
 
-func (pm *ProtocolsManager) implRemoveProtocol(protocol *ServerProtocol) {
+func (ps *ProtocolsService) removeProtocol(protocol *ServerProtocol) {
 	index := -1
-	for i, p := range pm.Protocols {
+	for i, p := range ps.Protocols {
 		if p == protocol {
 			index = i
 			break
@@ -167,94 +164,28 @@ func (pm *ProtocolsManager) implRemoveProtocol(protocol *ServerProtocol) {
 	removeOk := index != -1
 
 	if removeOk {
-		left := pm.Protocols[:index]
-		right := pm.Protocols[index+1:]
-		pm.Protocols = append(left, right...)
-	}
-}
-
-//---------------------------------------------------------
-
-type myConnMsg struct {
-	Conn net.Conn
-	Msg  *pb.Msg
-}
-
-type MsgSender struct {
-	myConnMsgChan chan *myConnMsg
-}
-
-func NewMsgSender() *MsgSender {
-	msgSender := &MsgSender{make(chan *myConnMsg, 6)}
-	go msgSender.Run()
-	return msgSender
-}
-
-func (ms *MsgSender) SendMsg(conn net.Conn, msg *pb.Msg) {
-	ms.myConnMsgChan <- &myConnMsg{conn, msg}
-}
-
-func (ms *MsgSender) Run() {
-	for {
-		myConnMsg := <-ms.myConnMsgChan
-		pbencoder.SendMsg(myConnMsg.Conn, myConnMsg.Msg)
-	}
-}
-
-//---------------------------------------------------------
-
-func IndexOfColor(color pb.Stone_Color) int {
-	if color == pb.Stone_BLACK {
-		return 0
-	}else {
-		return 1
-	}
-}
-
-func ColorOfIndex(index int) pb.Stone_Color {
-	if index == 0 {
-		return pb.Stone_BLACK
-	}else{
-		return pb.Stone_WHITE
-	}
-}
-
-func OtherIndex(index int) int {
-	if index == 0 {
-		return 1
-	}else{
-		return 0
-	}
-}
-
-func OtherColor(color pb.Stone_Color) pb.Stone_Color {
-	if color == pb.Stone_BLACK {
-		return pb.Stone_WHITE
-	}else{
-		return pb.Stone_BLACK
+		left := ps.Protocols[:index]
+		right := ps.Protocols[index+1:]
+		ps.Protocols = append(left, right...)
 	}
 }
 
 //=============================================================================
 
-type MyGame struct {
-	Game *pb.Game
+type GameService struct {
+	Game              *pb.Game
 	LinebrokenPlayers []*pb.Player
 
-	AddStoneChan chan *pb.Stone
+	AddStoneChan    chan *pb.Stone
 	RemoveStoneChan chan struct{}
 	ClockNotifyChan chan *pb.ClockNotify
 
-	PlayerComebackChan chan *pb.Player
+	PlayerComebackChan   chan *pb.Player
 	PlayerLinebrokenChan chan *pb.Player
 }
 
-//---------------------------------------------------------
-// inner function
-//---------------------------------------------------------
-
-func (g *MyGame) isPlayerInGame(player *pb.Player) (ok bool) {
-	for _,p := range g.Game.GetPlayers() {
+func (gs *GameService) isPlayerInGame(player *pb.Player) (ok bool) {
+	for _, p := range gs.Game.GetPlayers() {
 		if p.GetPid() == player.GetPid() {
 			ok = true
 			break
@@ -263,8 +194,8 @@ func (g *MyGame) isPlayerInGame(player *pb.Player) (ok bool) {
 	return
 }
 
-func (g *MyGame) isPlayerInLineBroken(player *pb.Player) (ok bool) {
-	for _,p := range g.LinebrokenPlayers {
+func (gs *GameService) isPlayerInLineBroken(player *pb.Player) (ok bool) {
+	for _, p := range gs.LinebrokenPlayers {
 		if p.GetPid() == player.GetPid() {
 			ok = true
 			break
@@ -273,8 +204,8 @@ func (g *MyGame) isPlayerInLineBroken(player *pb.Player) (ok bool) {
 	return
 }
 
-func (g *MyGame) getOtherPlayer(player *pb.Player) (other *pb.Player) {
-	for _,p := range g.Game.GetPlayers() {
+func (gs *GameService) getOtherPlayer(player *pb.Player) (other *pb.Player) {
+	for _, p := range gs.Game.GetPlayers() {
 		if player.GetPid() != p.GetPid() {
 			other = p
 		}
@@ -282,9 +213,9 @@ func (g *MyGame) getOtherPlayer(player *pb.Player) (other *pb.Player) {
 	return
 }
 
-func (g *MyGame) implRemoveLinebrokenPlayer(player *pb.Player) {
+func (gs *GameService) removeLinebrokenPlayer(player *pb.Player) {
 	index := -1
-	for i, p := range g.LinebrokenPlayers {
+	for i, p := range gs.LinebrokenPlayers {
 		if p.GetPid() == player.GetPid() {
 			index = i
 			break
@@ -294,80 +225,76 @@ func (g *MyGame) implRemoveLinebrokenPlayer(player *pb.Player) {
 	removeOk := index != -1
 
 	if removeOk {
-		left := g.LinebrokenPlayers[:index]
-		right := g.LinebrokenPlayers[index+1:]
-		g.LinebrokenPlayers = append(left, right...)
+		left := gs.LinebrokenPlayers[:index]
+		right := gs.LinebrokenPlayers[index+1:]
+		gs.LinebrokenPlayers = append(left, right...)
 	}
 }
 
-//---------------------------------------------------------
-// interface
-//---------------------------------------------------------
-
-func (g *MyGame) AddStone(stone *pb.Stone) {
-	g.AddStoneChan <- stone
+func (gs *GameService) IAddStone(stone *pb.Stone) {
+	gs.AddStoneChan <- stone
 }
 
-func (g *MyGame) RemoveStone() {
-	g.RemoveStoneChan <- struct{}{}
+func (gs *GameService) IRemoveStone() {
+	gs.RemoveStoneChan <- struct{}{}
 }
 
-func (g *MyGame) UpdateClock(clockNotify *pb.ClockNotify) {
-	g.ClockNotifyChan <- clockNotify
+func (gs *GameService) IUpdateClock(clockNotify *pb.ClockNotify) {
+	gs.ClockNotifyChan <- clockNotify
 }
 
-func (g *MyGame) PlayerComeback(player *pb.Player) {
-	g.PlayerComebackChan <- player
+func (gs *GameService) IPlayerComeback(player *pb.Player) {
+	gs.PlayerComebackChan <- player
 }
 
-func (g *MyGame) PlayerLinebroken(player *pb.Player) {
-	g.PlayerLinebrokenChan	<- player
+func (gs *GameService) IPlayerLinebroken(player *pb.Player) {
+	gs.PlayerLinebrokenChan <- player
 }
 
-func (g *MyGame) Run() {
+func (gs *GameService) Run() {
 	for {
 		select {
-		case stone := <- g.AddStoneChan:
-			g.Game.Stones = append(g.Game.Stones,stone)
+		case stone := <-gs.AddStoneChan:
+			gs.Game.Stones = append(gs.Game.Stones, stone)
 
-		case <- g.RemoveStoneChan:
-			length := len(g.Game.Stones)
+		case <-gs.RemoveStoneChan:
+			length := len(gs.Game.Stones)
 			if length > 0 {
-				g.Game.Stones = g.Game.Stones[:length-1]
+				gs.Game.Stones = gs.Game.Stones[:length-1]
 			}
 
-		case clockNotify := <- g.ClockNotifyChan:
+		case clockNotify := <-gs.ClockNotifyChan:
 			index := IndexOfColor(clockNotify.GetColor())
-			g.Game.Clocks[index] = clockNotify.Clock
+			gs.Game.Clocks[index] = clockNotify.Clock
 
-			player := g.Game.Players[OtherIndex(index)]
-			msg := &pb.Msg{Type: pb.Msg_ClockNotifyType,Union: &pb.Msg_ClockNotify{clockNotify}}
-			MyProtocolsManager.SendPidMsg(player.GetPid(),msg)
+			player := gs.Game.Players[OtherIndex(index)]
+			msg := &pb.Msg{Type: pb.Msg_ClockNotifyType, Union: &pb.Msg_ClockNotify{clockNotify}}
+			protocolsService.ISendPidMsg(player.GetPid(), msg)
 
-		case player := <- g.PlayerComebackChan:
-			if g.isPlayerInGame(player) && g.isPlayerInLineBroken(player) {
-				g.implRemoveLinebrokenPlayer(player)
-				if len(g.LinebrokenPlayers) == 0 {
-					g.Game.State = pb.Game_RUNNING
-					other := g.getOtherPlayer(player)
+		case player := <-gs.PlayerComebackChan:
+			if gs.isPlayerInGame(player) && gs.isPlayerInLineBroken(player) {
+				gs.removeLinebrokenPlayer(player)
+				if len(gs.LinebrokenPlayers) == 0 {
+					gs.Game.State = pb.Game_RUNNING
+					other := gs.getOtherPlayer(player)
 					msg := &pb.Msg{
-						Type: pb.Msg_ComebackNotifyType,
-						Union: &pb.Msg_ComebackNotify{&pb.ComebackNotify{Gid: g.Game.GetGid(), Pid: player.GetPid()}}}
-					MyProtocolsManager.SendPidMsg(other.GetPid(),msg)
+						Type:  pb.Msg_ComebackNotifyType,
+						Union: &pb.Msg_ComebackNotify{&pb.ComebackNotify{Gid: gs.Game.GetGid(), Pid: player.GetPid()}}}
+					protocolsService.ISendPidMsg(other.GetPid(), msg)
 				}
 			}
 
-		case player := <- g.PlayerLinebrokenChan:
-			if g.isPlayerInGame(player) {
-				if length := len(g.LinebrokenPlayers); length == 0 {
-					g.Game.State = pb.Game_PAUSED
-					other := g.getOtherPlayer(player)
+		case player := <-gs.PlayerLinebrokenChan:
+			if gs.isPlayerInGame(player) {
+				if length := len(gs.LinebrokenPlayers); length == 0 {
+					gs.Game.State = pb.Game_PAUSED
+					other := gs.getOtherPlayer(player)
 					msg := &pb.Msg{
-						Type: pb.Msg_LinebrokenNotifyType,
-						Union: &pb.Msg_LinebrokenNotify{&pb.LinebrokenNotify{Gid: g.Game.GetGid(), Pid: player.GetPid()}}}
-					MyProtocolsManager.SendPidMsg(other.GetPid(),msg)
+						Type:  pb.Msg_LinebrokenNotifyType,
+						Union: &pb.Msg_LinebrokenNotify{&pb.LinebrokenNotify{Gid: gs.Game.GetGid(), Pid: player.GetPid()}}}
+					protocolsService.ISendPidMsg(other.GetPid(), msg)
 				}
-				g.LinebrokenPlayers = append(g.LinebrokenPlayers,player)
+				gs.LinebrokenPlayers = append(gs.LinebrokenPlayers, player)
 			}
 		}
 	}
@@ -375,67 +302,67 @@ func (g *MyGame) Run() {
 
 //=============================================================================
 
-type GamesManager struct {
-	Games []*MyGame
+type GamesService struct {
+	Games []*GameService
 
-	AddGameChan chan *MyGame
-	RemoveGameChan chan *MyGame
-	PlayerComebackChan chan *pb.Player
+	AddGameChan          chan *GameService
+	RemoveGameChan       chan *GameService
+	PlayerComebackChan   chan *pb.Player
 	PlayerLinebrokenChan chan *pb.Player
 }
 
-func NewGamesManager() *GamesManager {
-	gm := &GamesManager{AddGameChan: make(chan *MyGame,6),RemoveGameChan: make(chan *MyGame,6)}
+func NewGamesService() *GamesService {
+	gm := &GamesService{AddGameChan: make(chan *GameService, 6), RemoveGameChan: make(chan *GameService, 6)}
 	go gm.Run()
 	return gm
 }
 
-func (gm *GamesManager) AddGame(game *MyGame) {
-	gm.AddGameChan <- game
+func (gss *GamesService) IAddGame(game *GameService) {
+	gss.AddGameChan <- game
 }
 
-func (gm *GamesManager) RemoveGame(game *MyGame) {
-	gm.RemoveGameChan <- game
+func (gss *GamesService) IRemoveGame(game *GameService) {
+	gss.RemoveGameChan <- game
 }
 
-func (gm *GamesManager) PlayerComeback(player *pb.Player) {
-	gm.PlayerComebackChan <- player
+func (gss *GamesService) IPlayerComeback(player *pb.Player) {
+	gss.PlayerComebackChan <- player
 }
 
-func (gm *GamesManager) PlayerLinebroken(player *pb.Player) {
-	gm.PlayerLinebrokenChan <- player
+func (gss *GamesService) IPlayerLinebroken(player *pb.Player) {
+	gss.PlayerLinebrokenChan <- player
 }
 
-func (gm *GamesManager) Run() {
+func (gss *GamesService) Run() {
 	for {
 		select {
-		case game := <- gm.AddGameChan:
-			gm.Games = append(gm.Games,game)
-		case game := <- gm.RemoveGameChan:
-			gm.implRemoveGame(game)
-		case player := <- gm.PlayerComebackChan:
-			gm.implPlayerComeback(player)
-		case player := <- gm.PlayerLinebrokenChan:
-			gm.implPlayerLinebroken(player)
+		case game := <-gss.AddGameChan:
+			gss.Games = append(gss.Games, game)
+		case game := <-gss.RemoveGameChan:
+			gss.removeGame(game)
+		case player := <-gss.PlayerComebackChan:
+			gss.playerComeback(player)
+		case player := <-gss.PlayerLinebrokenChan:
+			gss.playerLinebroken(player)
 		}
 	}
 }
 
-func (gm *GamesManager) implPlayerLinebroken(player *pb.Player) {
-	for _,mygame := range gm.Games {
-		mygame.PlayerLinebroken(player)
+func (gss *GamesService) playerLinebroken(player *pb.Player) {
+	for _, myGame := range gss.Games {
+		myGame.IPlayerLinebroken(player)
 	}
 }
 
-func (gm *GamesManager) implPlayerComeback(player *pb.Player) {
-	for _,mygame := range gm.Games {
-		mygame.PlayerComeback(player)
+func (gss *GamesService) playerComeback(player *pb.Player) {
+	for _, myGame := range gss.Games {
+		myGame.IPlayerComeback(player)
 	}
 }
 
-func (gm *GamesManager) implRemoveGame(game *MyGame){
+func (gss *GamesService) removeGame(game *GameService) {
 	index := -1
-	for i, g := range gm.Games {
+	for i, g := range gss.Games {
 		if g == game {
 			index = i
 			break
@@ -445,8 +372,72 @@ func (gm *GamesManager) implRemoveGame(game *MyGame){
 	removeOk := index != -1
 
 	if removeOk {
-		left := gm.Games[:index]
-		right := gm.Games[index+1:]
-		gm.Games = append(left, right...)
+		left := gss.Games[:index]
+		right := gss.Games[index+1:]
+		gss.Games = append(left, right...)
 	}
 }
+
+//=============================================================================
+
+type myConnMsg struct {
+	Conn net.Conn
+	Msg  *pb.Msg
+}
+
+type MsgSenderService struct {
+	myConnMsgChan chan *myConnMsg
+}
+
+func NewMsgSenderService() *MsgSenderService {
+	msgSender := &MsgSenderService{make(chan *myConnMsg, 6)}
+	go msgSender.Run()
+	return msgSender
+}
+
+func (ms *MsgSenderService) ISendMsg(conn net.Conn, msg *pb.Msg) {
+	ms.myConnMsgChan <- &myConnMsg{conn, msg}
+}
+
+func (ms *MsgSenderService) Run() {
+	for {
+		myConnMsg := <-ms.myConnMsgChan
+		pbencoder.SendMsg(myConnMsg.Conn, myConnMsg.Msg)
+	}
+}
+
+//=============================================================================
+
+func IndexOfColor(color pb.Stone_Color) int {
+	if color == pb.Stone_BLACK {
+		return 0
+	} else {
+		return 1
+	}
+}
+
+func ColorOfIndex(index int) pb.Stone_Color {
+	if index == 0 {
+		return pb.Stone_BLACK
+	} else {
+		return pb.Stone_WHITE
+	}
+}
+
+func OtherIndex(index int) int {
+	if index == 0 {
+		return 1
+	} else {
+		return 0
+	}
+}
+
+func OtherColor(color pb.Stone_Color) pb.Stone_Color {
+	if color == pb.Stone_BLACK {
+		return pb.Stone_WHITE
+	} else {
+		return pb.Stone_BLACK
+	}
+}
+
+//=============================================================================
