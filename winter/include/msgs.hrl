@@ -1,0 +1,3 @@
+-record(person,{name,age}).
+-record(player,{pid,password,level}).
+-record(login,{pid,password}).
