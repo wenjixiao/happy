@@ -1,0 +1,1 @@
+-record(pp,{player,proxy_pid}).

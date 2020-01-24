@@ -1,12 +1,12 @@
 -module(proxy_manager).
 
 -include("msgs.hrl").
+-include("data.hrl").
 
 -behavior(gen_server).
 
 -compile(export_all).
 
--record(pp,{player,proxy}).
 
 % =============================================================================
 
@@ -41,9 +41,9 @@ handle_cast({add,PlayerProxy},{PP,Players}) -> {noreply,{[PlayerProxy|PP],Player
 
 handle_cast({update,PlayerProxy},{PP,Players}) ->
     Fun = fun(MyPP) ->
-        if 
-            MyPP#pp.proxy == PlayerProxy#pp.proxy -> MyPP#pp{player=PlayerProxy#pp.player};
-            MyPP#pp.proxy /= PlayerProxy#pp.proxy -> MyPP
+        case MyPP#pp.proxy_pid == PlayerProxy#pp.proxy_pid of
+            true -> MyPP#pp{player=PlayerProxy#pp.player};
+            _ -> MyPP
         end
     end,
     {noreply,{lists:map(Fun,PP),Players}};
