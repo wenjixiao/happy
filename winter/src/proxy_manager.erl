@@ -10,11 +10,9 @@
 
 % =============================================================================
 
-start() ->
-    gen_server:start({local,?MODULE},?MODULE,{[],init_players()},[]).
+start() -> gen_server:start({local,?MODULE},?MODULE,{[],init_players()},[]).
 
-stop() ->
-    gen_server:stop(?MODULE).
+stop() -> gen_server:stop(?MODULE).
 
 add_player_proxy(PlayerProxy) -> gen_server:cast(?MODULE,{add,PlayerProxy}).
 

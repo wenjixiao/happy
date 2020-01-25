@@ -12,7 +12,7 @@ runserver:
 	erl -noshell -pa ${BIN_DIR} -s myserver start -s init stop
 
 runclient:
-	erl -noshell -pa ${BIN_DIR} -s myclient start -s init stop
+	erl -noshell -pa ${BIN_DIR} -s wxclient start -s init stop
 
 clean:
 	del ${BIN_DIR}\*.beam
