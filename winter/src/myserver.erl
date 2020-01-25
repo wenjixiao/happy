@@ -30,6 +30,7 @@ listen_loop(ListenSocket) ->
 
 proxy_read_loop(Proxy) ->
     Sock = Proxy#proxy.sock,
+    io:format("proxy process reading:~p ~p~n",[self(),Sock]),
     receive
         {tcp,Sock,Data} ->
             Msg = binary_to_term(Data),
