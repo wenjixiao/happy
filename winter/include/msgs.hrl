@@ -2,4 +2,4 @@
 -record(login,{name,password}).
 -record(login_ok,{player}).
 -record(login_fail,{reason}).
--record(invite,{name}).
+-record(invite,{fromName,toName}).

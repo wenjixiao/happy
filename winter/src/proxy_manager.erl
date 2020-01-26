@@ -7,18 +7,17 @@
 
 -compile(export_all).
 
-
 % =============================================================================
 
 start() -> gen_server:start({local,?MODULE},?MODULE,{[],init_players()},[]).
 
 stop() -> gen_server:stop(?MODULE).
 
-add_player_proxy(PlayerProxy) -> gen_server:cast(?MODULE,{add,PlayerProxy}).
+add_player_proxy(PlayerPid) -> gen_server:cast(?MODULE,{add,PlayerPid}).
 
-remove_player_proxy(PlayerProxy) -> gen_server:cast(?MODULE,{remove,PlayerProxy}).
+remove_player_proxy(PlayerPid) -> gen_server:cast(?MODULE,{remove,PlayerPid}).
 
-update_player_proxy(PlayerProxy) -> gen_server:cast(?MODULE,{update,PlayerProxy}).
+update_player_proxy(PlayerPid) -> gen_server:cast(?MODULE,{update,PlayerPid}).
 
 get_player(Name,Password) -> gen_server:call(?MODULE,{get_player,Name,Password}).
 
@@ -33,43 +32,43 @@ init_players() ->
 
 % =============================================================================
 
-init({PP,Players}) -> {ok,{PP,Players}}.
+init({PlayerPids,Players}) -> {ok,{PlayerPids,Players}}.
 
 terminate(_Reason,_State) -> ok.
 
-handle_cast({add,PlayerProxy},{PP,Players}) -> {noreply,{[PlayerProxy|PP],Players}};
+handle_cast({add,PlayerPid},{PlayerPids,Players}) -> {noreply,{[PlayerPid|PlayerPids],Players}};
 
-handle_cast({update,PlayerProxy},{PP,Players}) ->
-    Fun = fun(MyPP) ->
-        case MyPP#pp.proxy_pid == PlayerProxy#pp.proxy_pid of
-            true -> MyPP#pp{player=PlayerProxy#pp.player};
-            _ -> MyPP
+handle_cast({update,PlayerPid},{PlayerPids,Players}) ->
+    Fun = fun(PP) ->
+        case PP#player_pid.pid == PlayerPid#player_pid.pid of
+            true -> PP#player_pid{player=PlayerPid#player_pid.player};
+            _ -> PP
         end
     end,
-    {noreply,{lists:map(Fun,PP),Players}};
+    {noreply,{lists:map(Fun,PlayerPids),Players}};
 
-handle_cast({remove,PlayerProxy},{PP,Players}) -> {noreply,{lists:delete(PlayerProxy,PP),Players}};
+handle_cast({remove,PlayerPid},{PlayerPids,Players}) -> {noreply,{lists:delete(PlayerPid,PlayerPids),Players}};
 
-handle_cast({send_msg,Name,Msg},{PP,Players}) ->
-    % pp = {player,proxy_pid}
-    Fun = fun(MyPP) ->
-        case MyPP#pp.player of
+handle_cast({send_msg,Name,Msg},{PlayerPids,Players}) ->
+    io:format("in send_msg: ~p,~p~n",[Name,Msg]),
+    Fun = fun(PP) ->
+        case PP#player_pid.player of
             undefined -> ok;
             Player -> 
                 if 
-                   Player#player.name == Name -> MyPP#pp.proxy_pid ! {send,Msg};
-                   Player#player.name /= Name -> ok
+                   Player#player.name == Name -> PP#player_pid.pid ! {send,Msg};
+                   true -> ok
                 end 
         end
     end,
-    lists:map(Fun,PP),
-    {noreply,{PP,Players}}.
+    lists:map(Fun,PlayerPids),
+    {noreply,{PlayerPids,Players}}.
 
-handle_call({get_player,Name,Password},From,{PP,Players}) ->
+handle_call({get_player,Name,Password},From,{PlayerPids,Players}) ->
     Fun = fun(Player) ->
         if
             (Player#player.name == Name) and (Player#player.password == Password) -> true;
-            (Player#player.name /= Name) or (Player#player.password /= Password) -> false
+            true -> false
         end
     end,
 
@@ -83,6 +82,6 @@ handle_call({get_player,Name,Password},From,{PP,Players}) ->
             {ok,Head};
         Len =< 0 -> {error,"no that player!"}
     end,
-    {reply,Reply,{PP,Players}}.
+    {reply,Reply,{PlayerPids,Players}}.
 
 % =============================================================================

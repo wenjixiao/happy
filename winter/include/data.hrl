@@ -1,1 +1,2 @@
--record(pp,{player,proxy_pid}).
+-record(proxy,{sock,player}).
+-record(player_pid,{player,pid}).

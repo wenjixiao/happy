@@ -14,8 +14,11 @@ runserver:
 runclient:
 	erl -noshell -pa ${BIN_DIR} -s wxclient start -s init stop
 
+runtest:
+	erl -noshell -pa ${BIN_DIR} -s test3 start -s init stop
+
 clean:
 	del ${BIN_DIR}\*.beam
 
 %.beam: %.erl
-	erlc -W -I $(INCLUDE_DIR) -o $(BIN_DIR) $< 
+	erlc -I $(INCLUDE_DIR) -o $(BIN_DIR) $< 

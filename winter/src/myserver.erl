@@ -5,8 +5,6 @@
 
 -export([start/0,listen_loop/1,proxy_read_loop/1]).
 
--record(proxy,{sock,player}).
-
 start() ->
     proxy_manager:start(),
     case gen_tcp:listen(20000,[binary,{packet,4},{reuseaddr,true},{active,true}]) of
@@ -22,7 +20,7 @@ listen_loop(ListenSocket) ->
             Proxy = #proxy{sock=Socket},
             ProxyPid = spawn(?MODULE,proxy_read_loop,[Proxy]),
             gen_tcp:controlling_process(Socket,ProxyPid),
-            proxy_manager:add_player_proxy(#pp{proxy_pid=ProxyPid}),
+            proxy_manager:add_player_proxy(#player_pid{pid=ProxyPid}),
             listen_loop(ListenSocket);
         {error,Reason} -> 
             io:format("accept: ~p~n",[Reason])
@@ -40,7 +38,7 @@ proxy_read_loop(Proxy) ->
                     case proxy_manager:get_player(Name,Password) of
                         {ok,Player} -> 
                             io:format("login ok:~p,~p~n",[Name,Password]),
-                            proxy_manager:update_player_proxy(#pp{player=Player,proxy_pid=self()}),
+                            proxy_manager:update_player_proxy(#player_pid{player=Player,pid=self()}),
                             send_msg(Sock,#login_ok{player=Player}),
                             proxy_read_loop(Proxy#proxy{player = Player});
                         {error,Reason} -> 
@@ -49,10 +47,9 @@ proxy_read_loop(Proxy) ->
                             proxy_read_loop(Proxy)
                     end;
 
-                #invite{name=ToName} -> 
-                    Player = Proxy#proxy.player,
-                    FromName = Player#player.name,
-                    proxy_manager:send_msg(ToName,#invite{name=FromName})
+                #invite{toName=ToName} -> 
+                    proxy_manager:send_msg(ToName,Msg),
+                    proxy_read_loop(Proxy)
             end;
 
         {send,Msg} -> 

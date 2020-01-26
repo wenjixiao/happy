@@ -48,6 +48,7 @@ loop(Frame,Socket,Context) ->
             if 
                 Len > 0 ->
                     [Cmd|Params] = string:split(Line," ",all),
+                    io:format("cmd things: ~p,~p~n",[Cmd,Params]),
                     case Cmd of
                         "exit" -> ok;
 
@@ -60,13 +61,13 @@ loop(Frame,Socket,Context) ->
 
                         "invite" ->
                             [Name] = Params,
-                            Invite = #invite{name=Name},
+                            Invite = #invite{fromName=Context#context.player#player.name,toName=Name},
                             gen_tcp:send(Socket,term_to_binary(Invite)),
                             wxTextCtrl:clear(InputTextCtrl),
                             loop(Frame,Socket,Context)
                     end;
 
-                Len =< 0 -> loop(Frame,Socket,Context)
+                true -> loop(Frame,Socket,Context)
             end;
 
         #wx{event=#wxClose{}} -> io:format("window closed~n");
@@ -79,12 +80,14 @@ loop(Frame,Socket,Context) ->
             wxTextCtrl:setValue(OutputTextCtrl,io_lib:format("~p",[Msg])),
 
             case Msg of
-                #login_ok{player=MyPlayer} -> loop(Frame,Socket,Context#context{player=MyPlayer});
+                #login_ok{player=MyPlayer} -> 
+                    wxFrame:setLabel(Frame,MyPlayer#player.name),
+                    loop(Frame,Socket,Context#context{player=MyPlayer});
 
                 #login_fail{} -> loop(Frame,Socket,Context);
 
-                #invite{name=Name} -> 
-                    io:format("~p~n",[Name]),
+                #invite{} -> 
+                    io:format("invite: ~p~n",[Msg]),
                     loop(Frame,Socket,Context)
             end
     end.
