@@ -41,14 +41,13 @@ proxy_read_loop(Proxy) ->
                         {ok,Player} -> 
                             io:format("login ok:~p,~p~n",[Pid,Password]),
                             proxy_manager:update_player_proxy(#pp{player=Player,proxy_pid=self()}),
-                            gen_tcp:send(Sock,term_to_binary(#login_ok{}));
+                            gen_tcp:send(Sock,term_to_binary(#login_ok{player=Player})),
+                            proxy_read_loop(Proxy#proxy{player = Player});
                         {error,Reason} -> 
                             io:format("login failed: ~w~n",[Reason]),
-                            gen_tcp:send(Sock,term_to_binary(#login_fail{reason=Reason}))
-                    end,
-                    proxy_read_loop(Proxy)
+                            gen_tcp:send(Sock,term_to_binary(#login_fail{reason=Reason})),
+                            proxy_read_loop(Proxy)
+                    end
             end;
         {tcp_closed,_} -> io:format("proxy read process closed:~w~n",[self()])
     end.
-
-% =============================================================================

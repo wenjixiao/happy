@@ -9,6 +9,8 @@
 -define(MYOUTPUT,100).
 -define(MYINPUT,101).
 
+-record(context,{player}).
+
 start() ->
     case gen_tcp:connect("localhost",20000,[binary,{packet,4},{active,true}]) of
         {ok,Socket} -> 
@@ -21,7 +23,7 @@ start() ->
             wxFrame:connect(Frame,command_text_enter),
 
             wxFrame:show(Frame),
-            loop(Frame,Socket),
+            loop(Frame,Socket,#context{}),
             wxFrame:destroy(Frame);
 
         {error,Reason} -> io:format("connect error:~w~n",[Reason])
@@ -37,16 +39,11 @@ setup(Frame) ->
     wxBoxSizer:add(Sizer,Input,[{proportion,0},{flag,?wxEXPAND}]),
     wxPanel:setSizer(Panel,Sizer).
 
-loop(Frame,Socket) ->
+loop(Frame,Socket,Context) ->
     receive
-        #wx{id=?MYOUTPUT,event=#wxCommand{type=command_button_clicked}} ->
-            Login = #login{pid="wen",password="123"},
-            gen_tcp:send(Socket,term_to_binary(Login)),
-            loop(Frame,Socket);
-
         #wx{id=?MYINPUT,event=#wxCommand{type=command_text_enter}} ->
-            Win = wx:typeCast(wxWindow:findWindowById(?MYINPUT),wxTextCtrl),
-            Line = string:trim(wxTextCtrl:getValue(Win)),
+            InputTextCtrl = wx:typeCast(wxWindow:findWindowById(?MYINPUT),wxTextCtrl),
+            Line = string:trim(wxTextCtrl:getValue(InputTextCtrl)),
             Len = length(Line),
             if 
                 Len > 0 ->
@@ -57,20 +54,24 @@ loop(Frame,Socket) ->
                             [Pid,Password] = Params,
                             Login = #login{pid=Pid,password=Password},
                             gen_tcp:send(Socket,term_to_binary(Login)),
-                            wxTextCtrl:clear(Win),
-                            loop(Frame,Socket)
+                            wxTextCtrl:clear(InputTextCtrl),
+                            loop(Frame,Socket,Context)
                     end;
 
-                Len =< 0 -> loop(Frame,Socket)
+                Len =< 0 -> loop(Frame,Socket,Context)
             end;
 
-        #wx{event=#wxClose{}} ->
-            io:format("aimajamamamam~n");
+        #wx{event=#wxClose{}} -> io:format("window closed~n");
 
         {tcp,Socket,Data} -> 
             Msg = binary_to_term(Data),
             io:format("received data: ~p~n",[Msg]),
-            Win = wx:typeCast(wxWindow:findWindowById(?MYOUTPUT),wxTextCtrl),
-            wxTextCtrl:setValue(Win,io_lib:format("~w",[Msg])),
-            loop(Frame,Socket)
+
+            OutputTextCtrl = wx:typeCast(wxWindow:findWindowById(?MYOUTPUT),wxTextCtrl),
+            wxTextCtrl:setValue(OutputTextCtrl,io_lib:format("~p",[Msg])),
+
+            case Msg of
+                #login_ok{player=MyPlayer} -> loop(Frame,Socket,Context#context{player=MyPlayer});
+                #login_fail{} -> loop(Frame,Socket,Context)
+            end
     end.
