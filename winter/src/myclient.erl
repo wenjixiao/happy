@@ -28,8 +28,8 @@ cmd_loop(Socket) ->
             case Cmd of
                 "exit" -> ok;
                 "login" -> 
-                    [Pid,Password] = Params,
-                    Login = #login{pid=Pid,password=Password},
+                    [Name,Password] = Params,
+                    Login = #login{name=Name,password=Password},
                     gen_tcp:send(Socket,term_to_binary(Login)),
                     cmd_loop(Socket)
             end

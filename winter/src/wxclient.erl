@@ -50,10 +50,18 @@ loop(Frame,Socket,Context) ->
                     [Cmd|Params] = string:split(Line," ",all),
                     case Cmd of
                         "exit" -> ok;
+
                         "login" -> 
-                            [Pid,Password] = Params,
-                            Login = #login{pid=Pid,password=Password},
+                            [Name,Password] = Params,
+                            Login = #login{name=Name,password=Password},
                             gen_tcp:send(Socket,term_to_binary(Login)),
+                            wxTextCtrl:clear(InputTextCtrl),
+                            loop(Frame,Socket,Context);
+
+                        "invite" ->
+                            [Name] = Params,
+                            Invite = #invite{name=Name},
+                            gen_tcp:send(Socket,term_to_binary(Invite)),
                             wxTextCtrl:clear(InputTextCtrl),
                             loop(Frame,Socket,Context)
                     end;
@@ -72,6 +80,11 @@ loop(Frame,Socket,Context) ->
 
             case Msg of
                 #login_ok{player=MyPlayer} -> loop(Frame,Socket,Context#context{player=MyPlayer});
-                #login_fail{} -> loop(Frame,Socket,Context)
+
+                #login_fail{} -> loop(Frame,Socket,Context);
+
+                #invite{name=Name} -> 
+                    io:format("~p~n",[Name]),
+                    loop(Frame,Socket,Context)
             end
     end.

@@ -1,4 +1,5 @@
--record(player,{pid,password,level}).
--record(login,{pid,password}).
+-record(player,{name,password,level}).
+-record(login,{name,password}).
 -record(login_ok,{player}).
 -record(login_fail,{reason}).
+-record(invite,{name}).

@@ -36,18 +36,30 @@ proxy_read_loop(Proxy) ->
             Msg = binary_to_term(Data),
             io:format("received data: ~p~n",[Msg]),
             case Msg of 
-                #login{pid=Pid,password=Password} ->
-                    case proxy_manager:get_player(Pid,Password) of
+                #login{name=Name,password=Password} ->
+                    case proxy_manager:get_player(Name,Password) of
                         {ok,Player} -> 
-                            io:format("login ok:~p,~p~n",[Pid,Password]),
+                            io:format("login ok:~p,~p~n",[Name,Password]),
                             proxy_manager:update_player_proxy(#pp{player=Player,proxy_pid=self()}),
-                            gen_tcp:send(Sock,term_to_binary(#login_ok{player=Player})),
+                            send_msg(Sock,#login_ok{player=Player}),
                             proxy_read_loop(Proxy#proxy{player = Player});
                         {error,Reason} -> 
                             io:format("login failed: ~w~n",[Reason]),
-                            gen_tcp:send(Sock,term_to_binary(#login_fail{reason=Reason})),
+                            send_msg(Sock,#login_fail{reason=Reason}),
                             proxy_read_loop(Proxy)
-                    end
+                    end;
+
+                #invite{name=ToName} -> 
+                    Player = Proxy#proxy.player,
+                    FromName = Player#player.name,
+                    proxy_manager:send_msg(ToName,#invite{name=FromName})
             end;
+
+        {send,Msg} -> 
+            send_msg(Sock,Msg),
+            proxy_read_loop(Proxy);
+
         {tcp_closed,_} -> io:format("proxy read process closed:~w~n",[self()])
     end.
+
+send_msg(Socket,Msg) -> gen_tcp:send(Socket,term_to_binary(Msg)).
