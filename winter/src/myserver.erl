@@ -6,7 +6,7 @@
 -export([start/0,listen_loop/1,proxy_read_loop/1]).
 
 start() ->
-    proxy_manager:start(),
+    proxys_manager:start(),
     case gen_tcp:listen(20000,[binary,{packet,4},{reuseaddr,true},{active,true}]) of
         {ok,ListenSocket} -> 
             listen_loop(ListenSocket),
@@ -20,7 +20,7 @@ listen_loop(ListenSocket) ->
             Proxy = #proxy{sock=Socket},
             ProxyPid = spawn(?MODULE,proxy_read_loop,[Proxy]),
             gen_tcp:controlling_process(Socket,ProxyPid),
-            proxy_manager:add_player_proxy(#player_pid{pid=ProxyPid}),
+            proxys_manager:add_player_pid(#player_pid{pid=ProxyPid}),
             listen_loop(ListenSocket);
         {error,Reason} -> 
             io:format("accept: ~p~n",[Reason])
@@ -35,12 +35,12 @@ proxy_read_loop(Proxy) ->
             io:format("received data: ~p~n",[Msg]),
             case Msg of 
                 #login{name=Name,password=Password} ->
-                    case proxy_manager:get_player(Name,Password) of
+                    case players_manager:get_player(Name,Password) of
                         {ok,Player} -> 
                             io:format("login ok:~p,~p~n",[Name,Password]),
-                            proxy_manager:update_player_proxy(#player_pid{player=Player,pid=self()}),
+                            proxys_manager:update_player_pid(#player_pid{player=Player,pid=self()}),
                             send_msg(Sock,#login_ok{player=Player}),
-                            proxy_read_loop(Proxy#proxy{player = Player});
+                            proxy_read_loop(Proxy#proxy{player=Player});
                         {error,Reason} -> 
                             io:format("login failed: ~w~n",[Reason]),
                             send_msg(Sock,#login_fail{reason=Reason}),
@@ -48,7 +48,7 @@ proxy_read_loop(Proxy) ->
                     end;
 
                 #invite{toName=ToName} -> 
-                    proxy_manager:send_msg(ToName,Msg),
+                    proxys_manager:send_msg(ToName,Msg),
                     proxy_read_loop(Proxy)
             end;
 
@@ -56,7 +56,9 @@ proxy_read_loop(Proxy) ->
             send_msg(Sock,Msg),
             proxy_read_loop(Proxy);
 
-        {tcp_closed,_} -> io:format("proxy read process closed:~w~n",[self()])
+        {tcp_closed,_} -> 
+            io:format("proxy read process closed:~w~n",[self()]),
+            proxys_manager:remove_player_pid(Proxy),
     end.
 
 send_msg(Socket,Msg) -> gen_tcp:send(Socket,term_to_binary(Msg)).
