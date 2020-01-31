@@ -1,7 +1,6 @@
 -module(players_manager).
 
 -include("msgs.hrl").
--include("data.hrl").
 
 -behavior(gen_server).
 
@@ -13,15 +12,31 @@ start() -> gen_server:start({local,?MODULE},?MODULE,[],[]).
 
 stop() -> gen_server:stop(?MODULE).
 
-get_player(Name,Password) -> gen_server:call(?MODULE,{get_player,Name,Password}).
+get_db_player(Name,Password) -> gen_server:call(?MODULE,{get_db_player,Name,Password}).
+
+add_player(Player) -> gen_server:call(?MODULE,{add,Player}).
+remove_player(Player) -> gen_server:call(?MODULE,{remove,Player}).
+get_player(Name) -> gen_server:call(?MODULE,{get_player,Name}).
 
 % =============================================================================
 
-init() -> {ok,[init_players()]}.
+init() -> {ok,[PlayersDict,init_players()]}.
 
 terminate(_Reason,_State) -> ok.
 
-handle_call({get_player,Name,Password},From,Players) ->
+handle_cast({add,Player},{PlayersDict,DbPlayers}) -> {noreply,{dict:store(Player#player.name,Player,PlayersDict),DbPlayers}};
+
+handle_cast({remove,Name},{PlayersDict,DbPlayers}) -> {noreply,{dict:erase(Name,PlayersDict),DbPlayers}}.
+    
+handle_call({get_player,Name},From,{PlayersDict,DbPlayers}) ->
+    Reply = try dict:fetch(Name,PlayersDict) of
+        Player -> {ok,Player}
+    catch
+        error:_ -> {error,"no that player!"}
+    end,
+    {reply,Reply,{PlayersDict,DbPlayers}}.
+
+handle_call({get_db_player,Name,Password},From,{PlayersDict,DbPlayers}) ->
     Fun = fun(Player) ->
         if
             (Player#player.name == Name) and (Player#player.password == Password) -> true;
@@ -39,7 +54,7 @@ handle_call({get_player,Name,Password},From,Players) ->
             {ok,Head};
         Len =< 0 -> {error,"no that player!"}
     end,
-    {reply,Reply,UidPlayers}.
+    {reply,Reply,{PlayersDict,DbPlayers}}.
 
 % =============================================================================
 

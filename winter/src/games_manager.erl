@@ -2,30 +2,24 @@
 
 -behavior(gen_server).
 
--record(gid_pid,{gid,pid}).
-
 -compile(export_all).
 
-put_stone(GameId,Stone) -> gen_server:cast(?MODULE,{put_stone,GameId,Stone}).
+put_stone(Gid,Stone) -> gen_server:cast(?MODULE,{put_stone,Gid,Stone}).
 
-line_broken(Player) -> gen_server:cast(?MODULE,{line_broken,Player}).
+come_back(Player,Gid) -> gen_server:cast(?MODULE,{come_back,Player,Gid}).
+
+line_broken(Player,Gid) -> gen_server:cast(?MODULE,{line_broken,Player,Gid}).
 
 % =============================================================================
-
-init() -> {ok,[]}.
+% here we use dict,gid->pid is one-to-one
+init() -> {ok,dict:new()}.
 
 terminate(_Reason,_State) -> ok.
 
-handle_cast({put_stone,GameId,Stone},GidPids) -> 
-    Reply = case lists:keyfind(GameId,1,GidPids) of
-        false -> not_find;
-        GidPid -> game:put_stone(GidPid#gid_pid.pid,Stone)
-    end;
+handle_cast({put_stone,Gid,Stone},GidPidDict) -> game:put_stone(dict:fetch(Gid,GidPidDict),Stone);
 
-handle_cast({line_broken,Player},GidPids) ->
-    {noreply,GidPids};
+handle_cast({come_back,Uid,Gid},GidPidDict) -> game:come_back(dict:fetch(Gid,GidPidDict),Uid).
 
-handle_cast({come_back,Player},GidPids) ->
-    {noreply,GidPids}.
+handle_cast({line_broken,Uid,Gid},GidPidDict) -> game:line_broken(dict:fetch(Gid,GidPidDict),Uid).
 
 % =============================================================================

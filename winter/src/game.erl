@@ -23,11 +23,13 @@ create_game([Players]) ->
 destroy_game(Pid) -> 
     gen_server:stop(Pid).
 
-put_stone(Pid,Stone) -> 
-    gen_server:cast(Pid,{put_stone,Stone}).
+put_stone(Pid,Stone) -> gen_server:cast(Pid,{put_stone,Stone}).
 
-gameover(Pid,Result) ->
-    gen_server:cast(Pid,{gameover,Result}).
+gameover(Pid,Result) -> gen_server:cast(Pid,{gameover,Result}).
+
+line_broken(Pid,Uid) -> gen_server:cast(Pid,{line_broken,Uid}).
+
+come_back(Pid,Uid) -> gen_server:cast(Pid,{come_back,Uid}).
 
 % =============================================================================
 
@@ -38,23 +40,20 @@ terminate(_Reason,_State) -> ok.
 handle_cast({put_stone,Stone},Game) ->
     {noreply,Game};
     
-handle_cast({line_broken,Color},Game) ->
-    NewBrokenPlayers = Game#game.broken_colors ++ [Color],
-    Len = length(NewBrokenPlayers),
-    if
-        Len == 1 -> 
-            % send msg to the not line broken player
-            {noreply,Game#game{state=paused}};
-        Len == 2 -> 
-            timer:apply_after(5000,?MODULE,gameover,[self(),#result{end_type=line_broken}]);
-        true -> ok
+handle_cast({line_broken,Uid},Game) ->
+    Players = Game#game.players,
+    case Uid of 
+        Players#players.black#player.name -> Game#game{broken_colors=#broken_colors{black=true}};
+        Players#players.white#player.name -> Game#game{broken_colors=#broken_colors{white=true}}
     end,
     {noreply,Game};
 
-handle_cast({gameover,Result},Game) -> 
-    {stop,"gameover",Game};
-
-handle_cast({come_back,Player},Game) ->
+handle_cast({come_back,Uid},Game) ->
+    Players = Game#game.players,
+    case Uid of 
+        Players#players.black#player.name -> Game#game{broken_colors=#broken_colors{black=false}};
+        Players#players.white#player.name -> Game#game{broken_colors=#broken_colors{white=false}}
+    end,
     {noreply,Game};
 
 handle_cast({clock_notify,Clock},Game) ->
@@ -72,14 +71,17 @@ handle_cast(countdown,Game) ->
                 timeout -> {noreply,Game#game{result=#result{winner=black,end_type=timeout}}};
                 NewClock -> {noreply,Game#game{clocks=#clocks{white=NewClock}}}
             end
-    end.
+    end;
+
+handle_cast({gameover,Result},Game) -> {stop,"gameover",Game}.
+
 
 % =============================================================================
 
 is_line_broken(Game) -> 
     BrokenColors = Game#game.broken_colors,
     if 
-        (BrokenColors#broken_colors.black == true) or (BrokenColors#broken_colors.white == true) -> true;
+        BrokenColors#broken_colors.black or BrokenColors#broken_colors.white -> true;
         true -> false
     end.
 
