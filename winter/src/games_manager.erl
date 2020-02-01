@@ -23,3 +23,6 @@ handle_cast({come_back,Uid,Gid},GidPidDict) -> game:come_back(dict:fetch(Gid,Gid
 handle_cast({line_broken,Uid,Gid},GidPidDict) -> game:line_broken(dict:fetch(Gid,GidPidDict),Uid).
 
 % =============================================================================
+
+create_game(PlayerPid1,PlayerPid2,Proto) -> 
+    

@@ -14,6 +14,8 @@ add(Uid,Pid) -> gen_server:cast(?MODULE,{add,Uid,Pid}).
 
 remove(Uid) -> gen_server:cast(?MODULE,{remove,Uid}).
 
+get_pid(Uid) -> gen_server:call(?MODULE,{get_pid,Uid}).
+
 send_msg(Uid,Msg) -> gen_server:cast(?MODULE,{send_msg,Uid,Msg}).
 
 % =============================================================================
@@ -21,6 +23,8 @@ send_msg(Uid,Msg) -> gen_server:cast(?MODULE,{send_msg,Uid,Msg}).
 init() -> {ok,dict:new()}.
 
 terminate(_Reason,_State) -> ok.
+
+handle_call({get_pid,Uid},From,UidPidDict) -> {reply,dict:fetch(Uid,UidPidDict),UidPidDict}.
 
 handle_cast({add,Uid,Pid},UidPidDict) -> {noreply,dict:store(Uid,Pid,UidPidDict)};
 

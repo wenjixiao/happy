@@ -2,7 +2,7 @@
 
 -include("msgs.hrl").
 
--record(proxy,{sock,uid}).
+-record(proxy,{sock,player,games}).
 
 -export([start/0,listen_loop/1,proxy_read_loop/1]).
 
@@ -18,7 +18,7 @@ start() ->
 listen_loop(ListenSocket) ->
     case gen_tcp:accept(ListenSocket) of
         {ok,Socket} -> 
-            Proxy = #proxy{sock=Socket},
+            Proxy = #proxy{sock=Socket,games=[]},
             ProxyPid = spawn(?MODULE,proxy_read_loop,[Proxy]),
             gen_tcp:controlling_process(Socket,ProxyPid),
             listen_loop(ListenSocket);
@@ -38,11 +38,11 @@ proxy_read_loop(Proxy) ->
                     case players_manager:get_db_player(Name,Password) of
                         {ok,Player} -> 
                             io:format("login ok:~p,~p~n",[Name,Password]),
-                            players_manager:add(Player),
+                            % players_manager:add(Player),
                             proxys_manager:add(Player#player.name,self()),
-                            line_broken_manager:come_back(Uid),
+                            % line_broken_manager:come_back(Uid),
                             send_msg(Sock,#login_ok{player=Player}),
-                            proxy_read_loop(Proxy#proxy{uid=Player#player.name});
+                            proxy_read_loop(Proxy#proxy{player=Player});
                         {error,Reason} -> 
                             io:format("login failed: ~w~n",[Reason]),
                             send_msg(Sock,#login_fail{reason=Reason}),
@@ -60,12 +60,12 @@ proxy_read_loop(Proxy) ->
 
         {tcp_closed,_} -> 
             io:format("proxy read process closed:~w~n",[self()]),
-            case Proxy#proxy.uid of
+            case Proxy#proxy.player of
                 undefined -> ok;
-                Uid -> 
-                    players_manager:remove(Uid),
-                    proxys_manager:remove(Uid),
-                    line_broken_manager:line_broken(Uid)
+                Player -> 
+                    % players_manager:remove(Uid),
+                    proxys_manager:remove(Player#player.name),
+                    % line_broken_manager:line_broken(Uid)
             end
     end.
 

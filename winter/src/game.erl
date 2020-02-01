@@ -7,29 +7,30 @@
 -record(proto,{who_first_rule,range_zi,tie_mu,clock_def}).
 % state: prepare,running,paused,ended
 % end type: admit,count,timeout,line_broken
+-record(myproxy,{uid,proxy_pid}).
 -record(result,{winner,end_type,mount}).
 -record(players,{black,white}).
 -record(clocks,{black,white}).
 -record(broken_colors,{black,white}).
--record(game,{gid,state,color,players,clocks,broken_colors,stones,proto,result}).
+-record(game,{gid,state,color,init_players,players,clocks,broken_colors,stones,proto,result}).
 
 -behavior(gen_server).
 
 -compile(export_all).
 
-create_game([Players]) -> 
-    gen_server:start(?MODULE,[#game{players=Players}],[]).
+create_game([PlayerPids]) -> gen_server:start(?MODULE,[#game{init_players=PlayerPids}],[]).
 
-destroy_game(Pid) -> 
-    gen_server:stop(Pid).
+destroy_game(GamePid) -> gen_server:stop(GamePid).
 
-put_stone(Pid,Stone) -> gen_server:cast(Pid,{put_stone,Stone}).
+put_stone(GamePid,Stone) -> gen_server:cast(GamePid,{put_stone,Stone}).
 
-gameover(Pid,Result) -> gen_server:cast(Pid,{gameover,Result}).
+gameover(GamePid,Result) -> gen_server:cast(GamePid,{gameover,Result}).
 
-line_broken(Pid,Uid) -> gen_server:cast(Pid,{line_broken,Uid}).
+line_broken(GamePid,Uid) -> gen_server:cast(GamePid,{line_broken,Uid}).
 
-come_back(Pid,Uid) -> gen_server:cast(Pid,{come_back,Uid}).
+come_back(GamePid,Uid,ProxyPid) -> gen_server:cast(GamePid,{come_back,Uid,ProxyPid}).
+
+get_gid(GamePid) -> gen_server:call(GamePid,get_gid).
 
 % =============================================================================
 
@@ -37,24 +38,38 @@ init(Game) -> {ok,Game}.
 
 terminate(_Reason,_State) -> ok.
 
+handle_call(get_gid,From,Game) -> {reply,Game#game.gid,Game}.
+
 handle_cast({put_stone,Stone},Game) ->
-    {noreply,Game};
+    case Stone#stone.color of
+        black -> proxy:send_msg(Game#game.players#players.white,#put_stone{gid=Game#game.gid,stone=Stone});
+        white -> proxy:send_msg(Game#game.players#players.black,#put_stone{gid=Game#game.gid,stone=Stone})
+    end,
+    {noreply,Game#game{stones=Stones++[Stone]}};
     
 handle_cast({line_broken,Uid},Game) ->
+    line_broken_manager:line_broken(Game#game.gid,self(),Uid),
+    
     Players = Game#game.players,
     case Uid of 
-        Players#players.black#player.name -> Game#game{broken_colors=#broken_colors{black=true}};
-        Players#players.white#player.name -> Game#game{broken_colors=#broken_colors{white=true}}
+        Players#players.black#myproxy.uid -> Game#game{broken_colors=#broken_colors{black=true}};
+        Players#players.white#myproxy.uid -> Game#game{broken_colors=#broken_colors{white=true}}
     end,
     {noreply,Game};
 
-handle_cast({come_back,Uid},Game) ->
+handle_cast({come_back,Uid,ProxyPid},Game) ->
     Players = Game#game.players,
+    BrokenColors = Game#game.broken_colors,
     case Uid of 
-        Players#players.black#player.name -> Game#game{broken_colors=#broken_colors{black=false}};
-        Players#players.white#player.name -> Game#game{broken_colors=#broken_colors{white=false}}
-    end,
-    {noreply,Game};
+        Players#players.black#myproxy.uid -> 
+            NewPlayers = Players#players{black=#myproxy{uid=Uid,proxy_pid=ProxyPid}},
+            NewBrokenColors = BrokenColors#broken_colors{black=false},
+            {noreply,Game#game{players=NewPlayers,broken_colors=NewBrokenColors}};
+        Players#players.white#myproxy.uid -> 
+            NewPlayers = Players#players{white=#myproxy{uid=Uid,proxy_pid=ProxyPid}},
+            NewBrokenColors = BrokenColors#broken_colors{white=false},
+            {noreply,Game#game{players=NewPlayers,broken_colors=NewBrokenColors}};
+    end.
 
 handle_cast({clock_notify,Clock},Game) ->
     {noreply,Game};

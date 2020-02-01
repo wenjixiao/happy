@@ -3,3 +3,5 @@
 -record(login_ok,{player}).
 -record(login_fail,{reason}).
 -record(invite,{fromName,toName}).
+-record(stone,{color,x,y,is_pass}).
+-record(put_stone,{gid,stone}).

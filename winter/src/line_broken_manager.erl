@@ -2,48 +2,28 @@
 
 -behavior(gen_server).
 
+-record(mylinebroken,{gid,game_pid,uid}).
+
 -compile(export_all).
 
-register_player_gid(Uid,Gid) -> gen_server:cast(?MODULE,{register,Uid,Gid}).
-unregister_player_gid(Uid,Gid) -> gen_server:cast(?MODULE,{unregister,Uid,Gid}).
-line_broken(Uid) -> gen_server:cast(?MODULE,{line_broken,Uid}).
-come_back(Uid) -> gen_server:cast(?MODULE,{come_back,Uid}).
+line_broken(Gid,GamePid,Uid) -> gen_server:cast(?MODULE,{line_broken,Gid,GamePid,Uid}).
+gameover_with_line_broken(Gid) -> gen_server:cast(?MODULE,{gameover_with_line_broken,Gid,GamePid}).
+come_back(Uid,ProxyPid) -> gen_server:cast(?MODULE,{come_back,Uid,ProxyPid}).
 
 % =============================================================================
 
-init() -> {ok,dict:new()}.
+init() -> {ok,[]}.
 
 terminate(_Reason,_State) -> ok.
 
-handle_cast({register,Uid,Gid},UidGidDict) -> 
-    case dict:is_key(Uid,UidGidDict) of
-        true -> {noreply,dict:append(Uid,Gid,UidGidDict)};
-        false -> {noreply,dict:store(Uid,[Gid],UidGidDict)}
-    end;
+handle_cast({line_broken,Gid,GamePid,Uid},MyLineBrokens) -> 
+    {noreply,MyLineBrokens++[#mylinebroken{gid=Gid,game_pid=GamePid,uid=Uid}]};
 
-handle_cast({unregister,Uid,Gid},UidGidDict) -> 
-    case dict:is_key(Uid,UidGidDict) of
-        true -> 
-            Gids = dict:fetch(Uid,UidGidDict),
-            NewGids = lists:delete(Gid,Gids),
-            case length(NewGids) of
-                0 -> {noreply,dict:erase(Uid,UidGidDict)};
-                _ -> {noreply,dict:store(Uid,NewGids,UidGidDict)}
-            end,
-        false -> {noreply,UidGidDict}
-    end;
+handle_cast({come_back,Uid,ProxyPid},MyLineBrokens) -> 
+    {YesMyBrokens,NotMyBrokens} = lists:partition(fun(R)-> R#mylinebroken.uid == Uid end,MyLineBrokens),
+    lists:map(fun(R)-> game:come_back(R#mylinebroken.game_pid,Uid,ProxyPid) end,YesMyBrokens),
+    {noreply,NotMyBrokens}.
 
-handle_cast({line_broken,Uid},UidGidDict) ->
-    case dict:is_key(Uid,UidGidDict) of
-        true -> lists:foreach(fun(Gid) -> games_manager:line_broken(Uid,Gid) end,dict:fetch(Uid,UidGidDict));
-        false -> ok
-    end,
-    {noreply,UidGidDict};
-
-handle_cast({come_back,Uid},UidGidDict) -> 
-    case dict:is_key(Uid,UidGidDict) of
-        true -> lists:foreach(fun(Gid) -> games_manager:come_back(Uid,Gid) end,dict:fetch(Uid,UidGidDict));
-        false -> ok
-    end,
-    {noreply,UidGidDict}.
+handle_cast({gameover_with_line_broken,Gid},MyLineBrokens) ->
+    {noreply,lists:filter(fun(LineBroken)-> LineBroken#mylinebroken.gid /= Gid end,MyLineBrokens)}.
 
