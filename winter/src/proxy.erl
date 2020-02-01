@@ -8,14 +8,13 @@
 -compile(export_all).
 
 start(Socket) -> gen_server:start(?MODULE,[#context{sock=Socket,mygames=[]}],[]).
-
 stop(ProxyPid) -> gen_server:stop(ProxyPid).
 
 send_msg(ProxyPid,Msg) -> gen_server:cast(ProxyPid,{send,Msg}).
 
 % =============================================================================
-init(Context) -> {ok,Context}.
 
+init(Context) -> {ok,Context}.
 terminate(_Reason,_State) -> ok.
 
 handle_cast({tcp,Sock,Data},Context) ->

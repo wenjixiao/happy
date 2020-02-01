@@ -91,3 +91,45 @@ loop(Frame,Socket,Context) ->
                     loop(Frame,Socket,Context)
             end
     end.
+
+% =============================================================================
+
+get_per_time(Proto) -> Proto#proto.clock_def#clock_def.per_time.
+
+% switch_clock(Game) -> 
+%     case Game of
+%         #game{color=black,clocks=#clocks{black=Clock},proto=Proto} ->
+%             Game#game{color=white,clocks=#clocks{black=Clock#clock{per_time=get_per_time(Proto)}}};
+%         #game{color=white,clocks=#clocks{white=Clock},proto=Proto} ->
+%             Game#game{color=black,clocks=#clocks{white=Clock#clock{per_time=get_per_time(Proto)}}}
+%     end.
+
+countdown(Clock,Proto) -> countdown1(Clock,Proto,bao_liu).
+
+countdown1(Clock,Proto,Channel) ->
+    case Channel of
+        bao_liu -> 
+            BaoLiu = Clock#clock.bao_liu,
+            if
+                BaoLiu > 0 -> Clock#clock{bao_liu=BaoLiu-1};
+                true -> countdown1(Clock,Proto,du_miao)
+            end;
+        du_miao ->
+            DuMiao = Clock#clock.du_miao,
+            if 
+                DuMiao > 0 -> Clock#clock{du_miao=DuMiao-1};
+                true -> countdown1(Clock,Proto,times)
+            end;
+        times ->
+            Times = Clock#clock.times,
+            if
+                Times > 0 -> Clock#clock{times=Times-1,per_time=get_per_time(Proto)};
+                true -> timeout
+            end;
+        per_time ->
+            PerTime = Clock#clock.per_time,
+            if 
+                PerTime > 0 -> Clock#clock{per_time=PerTime-1};
+                true -> countdown1(Clock,Proto,times)
+            end
+    end.

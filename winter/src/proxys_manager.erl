@@ -5,23 +5,21 @@
 -compile(export_all).
 
 % =============================================================================
+% 提供 uid 到 proxy pid 的映射。
+% 因为别的用户只知道uid，而不知其真正的实体process的id。
+% =============================================================================
 
 start() -> gen_server:start({local,?MODULE},?MODULE,[],[]).
-
 stop() -> gen_server:stop(?MODULE).
 
 add(Uid,Pid) -> gen_server:cast(?MODULE,{add,Uid,Pid}).
-
 remove(Uid) -> gen_server:cast(?MODULE,{remove,Uid}).
-
 get_pid(Uid) -> gen_server:call(?MODULE,{get_pid,Uid}).
-
 send_msg(Uid,Msg) -> gen_server:cast(?MODULE,{send_msg,Uid,Msg}).
 
 % =============================================================================
 
 init() -> {ok,dict:new()}.
-
 terminate(_Reason,_State) -> ok.
 
 handle_call({get_pid,Uid},From,UidPidDict) -> {reply,dict:fetch(Uid,UidPidDict),UidPidDict}.

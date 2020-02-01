@@ -7,9 +7,11 @@
 -compile(export_all).
 
 % =============================================================================
+% 目前，都有谁在server上。
+% 在db中，存取player资料。
+% =============================================================================
 
 start() -> gen_server:start({local,?MODULE},?MODULE,[],[]).
-
 stop() -> gen_server:stop(?MODULE).
 
 get_db_player(Name,Password) -> gen_server:call(?MODULE,{get_db_player,Name,Password}).
@@ -21,7 +23,6 @@ get_player(Name) -> gen_server:call(?MODULE,{get_player,Name}).
 % =============================================================================
 
 init() -> {ok,[PlayersDict,init_players()]}.
-
 terminate(_Reason,_State) -> ok.
 
 handle_cast({add,Player},{PlayersDict,DbPlayers}) -> {noreply,{dict:store(Player#player.name,Player,PlayersDict),DbPlayers}};

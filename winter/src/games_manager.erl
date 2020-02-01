@@ -4,25 +4,25 @@
 
 -compile(export_all).
 
-put_stone(Gid,Stone) -> gen_server:cast(?MODULE,{put_stone,Gid,Stone}).
+% =============================================================================
+% 对于正在运行的game，做一个统一的记录。
+% 不关心具体事务，只是知道有这个game的存在。
+% 必要时，可查。
+% 我不能不知道“当前有多少个game在运行，都是谁”这样的问题。
+% =============================================================================
 
-come_back(Player,Gid) -> gen_server:cast(?MODULE,{come_back,Player,Gid}).
+start() -> gen_server:start({local,?MODULE},?MODULE,[],[]).
+stop() -> gen_server:stop(?MODULE).
 
-line_broken(Player,Gid) -> gen_server:cast(?MODULE,{line_broken,Player,Gid}).
+add(Gid,GamePid) -> gen_server:cast(?MODULE,{add,Gid,GamePid}).
+remove(Gid) -> gen_server:cast(?MODULE,{remove,Gid}).
 
 % =============================================================================
 % here we use dict,gid->pid is one-to-one
 init() -> {ok,dict:new()}.
-
 terminate(_Reason,_State) -> ok.
 
-handle_cast({put_stone,Gid,Stone},GidPidDict) -> game:put_stone(dict:fetch(Gid,GidPidDict),Stone);
-
-handle_cast({come_back,Uid,Gid},GidPidDict) -> game:come_back(dict:fetch(Gid,GidPidDict),Uid).
-
-handle_cast({line_broken,Uid,Gid},GidPidDict) -> game:line_broken(dict:fetch(Gid,GidPidDict),Uid).
+handle_cast({add,Gid,GamePid},GidPidDict) -> {noreply,dict:store(Gid,GamePid,GidPidDict)}.
+handle_cast({remove,Gid},GidPidDict) -> {noreply,dict:erase(Gid,GidPidDict)}.
 
 % =============================================================================
-
-create_game(PlayerPid1,PlayerPid2,Proto) -> 
-    

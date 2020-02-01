@@ -6,6 +6,9 @@
 
 -compile(export_all).
 
+start() -> gen_server:start({local,?MODULE},?MODULE,[],[]).
+stop() -> gen_server:stop(?MODULE).
+
 line_broken(Gid,GamePid,Uid) -> gen_server:cast(?MODULE,{line_broken,Gid,GamePid,Uid}).
 gameover_with_line_broken(Gid) -> gen_server:cast(?MODULE,{gameover_with_line_broken,Gid,GamePid}).
 come_back(Uid,ProxyPid) -> gen_server:cast(?MODULE,{come_back,Uid,ProxyPid}).
@@ -13,7 +16,6 @@ come_back(Uid,ProxyPid) -> gen_server:cast(?MODULE,{come_back,Uid,ProxyPid}).
 % =============================================================================
 
 init() -> {ok,[]}.
-
 terminate(_Reason,_State) -> ok.
 
 handle_cast({line_broken,Gid,GamePid,Uid},MyLineBrokens) -> 
