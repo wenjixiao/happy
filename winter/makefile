@@ -9,7 +9,7 @@ OBJECTS = $(patsubst %.erl,%.beam,$(SOURCES))
 compile: $(OBJECTS)
 
 runserver:
-	erl -noshell -pa ${BIN_DIR} -s myserver start -s init stop
+	erl -noshell -pa ${BIN_DIR} -s listening start -s init stop
 
 runclient:
 	erl -noshell -pa ${BIN_DIR} -s wxclient start -s init stop
@@ -21,4 +21,4 @@ clean:
 	del ${BIN_DIR}\*.beam
 
 %.beam: %.erl
-	erlc -I $(INCLUDE_DIR) -o $(BIN_DIR) $< 
+	erlc -W0 -I $(INCLUDE_DIR) -o $(BIN_DIR) $< 

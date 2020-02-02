@@ -19,10 +19,10 @@ remove(Gid) -> gen_server:cast(?MODULE,{remove,Gid}).
 
 % =============================================================================
 % here we use dict,gid->pid is one-to-one
-init() -> {ok,dict:new()}.
+init(_Args) -> {ok,dict:new()}.
 terminate(_Reason,_State) -> ok.
 
-handle_cast({add,Gid,GamePid},GidPidDict) -> {noreply,dict:store(Gid,GamePid,GidPidDict)}.
+handle_cast({add,Gid,GamePid},GidPidDict) -> {noreply,dict:store(Gid,GamePid,GidPidDict)};
 handle_cast({remove,Gid},GidPidDict) -> {noreply,dict:erase(Gid,GidPidDict)}.
 
 % =============================================================================

@@ -22,7 +22,7 @@ get_player(Name) -> gen_server:call(?MODULE,{get_player,Name}).
 
 % =============================================================================
 
-init() -> {ok,[PlayersDict,init_players()]}.
+init(_Args) -> {ok,{dict:new(),init_players()}}.
 terminate(_Reason,_State) -> ok.
 
 handle_cast({add,Player},{PlayersDict,DbPlayers}) -> {noreply,{dict:store(Player#player.name,Player,PlayersDict),DbPlayers}};
@@ -35,7 +35,7 @@ handle_call({get_player,Name},From,{PlayersDict,DbPlayers}) ->
     catch
         error:_ -> {error,"no that player!"}
     end,
-    {reply,Reply,{PlayersDict,DbPlayers}}.
+    {reply,Reply,{PlayersDict,DbPlayers}};
 
 handle_call({get_db_player,Name,Password},From,{PlayersDict,DbPlayers}) ->
     Fun = fun(Player) ->
@@ -45,7 +45,7 @@ handle_call({get_db_player,Name,Password},From,{PlayersDict,DbPlayers}) ->
         end
     end,
 
-    Result = lists:filter(Fun,Players),
+    Result = lists:filter(Fun,DbPlayers),
 
     Len = length(Result),
 

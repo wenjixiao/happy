@@ -19,7 +19,7 @@ send_msg(Uid,Msg) -> gen_server:cast(?MODULE,{send_msg,Uid,Msg}).
 
 % =============================================================================
 
-init() -> {ok,dict:new()}.
+init(_Args) -> {ok,dict:new()}.
 terminate(_Reason,_State) -> ok.
 
 handle_call({get_pid,Uid},From,UidPidDict) -> {reply,dict:fetch(Uid,UidPidDict),UidPidDict}.
@@ -29,7 +29,7 @@ handle_cast({add,Uid,Pid},UidPidDict) -> {noreply,dict:store(Uid,Pid,UidPidDict)
 handle_cast({remove,Uid},UidPidDict) -> {noreply,dict:erase(Uid,UidPidDict)};
 
 handle_cast({send_msg,Uid,Msg},UidPidDict) ->
-    io:format("in send_msg: ~p,~p~n",[Name,Msg]),
+    io:format("in send_msg: ~p,~p~n",[Uid,Msg]),
     dict:fetch(Uid,UidPidDict) ! {send,Msg},
     {noreply,UidPidDict}.
 % =============================================================================

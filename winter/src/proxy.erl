@@ -1,7 +1,10 @@
 -module(proxy).
 
+-include("msgs.hrl").
+
 -record(mygame,{gid,game_pid}).
 -record(context,{sock,player,mygames}).
+
 
 -behavior(gen_server).
 
@@ -14,10 +17,15 @@ send_msg(ProxyPid,Msg) -> gen_server:cast(ProxyPid,{send,Msg}).
 
 % =============================================================================
 
-init(Context) -> {ok,Context}.
-terminate(_Reason,_State) -> ok.
+init([Context]) -> 
+    io:format("context is: ~p,~p~n",[Context,self()]),
+    {ok,Context}.
 
-handle_cast({tcp,Sock,Data},Context) ->
+terminate(_Reason,_State) -> 
+    io:format("proxy exit: ~p~n",[self()]),
+    ok.
+
+handle_info({tcp,Sock,Data},Context) ->
     Msg = binary_to_term(Data),
     io:format("received data: ~p~n",[Msg]),
     case Msg of 
@@ -28,8 +36,7 @@ handle_cast({tcp,Sock,Data},Context) ->
                     % players_manager:add(Player),
                     proxys_manager:add(Player#player.name,self()),
                     % line_broken_manager:come_back(Uid),
-                    self() ! {send,#login_ok{player=Player}},
-                    
+                    send_msg(self(),#login_ok{player=Player}),
                     {noreply,Context#context{player=Player}};
                 {error,Reason} -> 
                     io:format("login failed: ~w~n",[Reason]),
@@ -53,10 +60,10 @@ handle_cast({tcp,Sock,Data},Context) ->
     end,
     {noreply,Context};
 
-handle_cast({tcp_closed,Sock},Context) ->
+handle_info({tcp_closed,Sock},Context) ->
     Fun = fun(MyGame) -> game:line_broken(MyGame#mygame.game_pid,Context#context.player#player.name) end,
-    lists:map(Fun,Context#context.games),
-    {noreply,Context};
+    lists:map(Fun,Context#context.mygames),
+    {stop,normal,Context}.
 
 handle_cast({send,Msg},Context) ->
     gen_tcp:send(Context#context.sock,term_to_binary(Msg)),
