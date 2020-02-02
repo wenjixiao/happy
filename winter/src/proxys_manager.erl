@@ -29,7 +29,7 @@ handle_cast({add,Uid,Pid},UidPidDict) -> {noreply,dict:store(Uid,Pid,UidPidDict)
 handle_cast({remove,Uid},UidPidDict) -> {noreply,dict:erase(Uid,UidPidDict)};
 
 handle_cast({send_msg,Uid,Msg},UidPidDict) ->
-    io:format("in send_msg: ~p,~p~n",[Uid,Msg]),
-    dict:fetch(Uid,UidPidDict) ! {send,Msg},
+    % io:format("in send_msg: ~p,~p~n",[Uid,Msg]),
+    proxy:send_msg(dict:fetch(Uid,UidPidDict),Msg),
     {noreply,UidPidDict}.
 % =============================================================================

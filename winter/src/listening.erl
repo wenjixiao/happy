@@ -21,10 +21,8 @@ start() ->
 listen_loop(ListenSocket) ->
     case gen_tcp:accept(ListenSocket) of
         {ok,Socket} -> 
-            io:format("socket ~p~n",[Socket]),
             case proxy:start(Socket) of
                 {ok,ProxyPid} -> 
-                    io:format("proxy pid:~p~n",[ProxyPid]),
                     gen_tcp:controlling_process(Socket,ProxyPid),
                     listen_loop(ListenSocket);
                 {error,Reason} -> io:format("start read socket: ~p~n",[Reason])

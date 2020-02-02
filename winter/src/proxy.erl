@@ -18,11 +18,11 @@ send_msg(ProxyPid,Msg) -> gen_server:cast(ProxyPid,{send,Msg}).
 % =============================================================================
 
 init([Context]) -> 
-    io:format("context is: ~p,~p~n",[Context,self()]),
+    io:format("proxy started: ~p,~p~n",[Context,self()]),
     {ok,Context}.
 
 terminate(_Reason,_State) -> 
-    io:format("proxy exit: ~p~n",[self()]),
+    io:format("proxy stopped: ~p~n",[self()]),
     ok.
 
 handle_info({tcp,Sock,Data},Context) ->
