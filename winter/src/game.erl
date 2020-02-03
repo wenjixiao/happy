@@ -12,18 +12,25 @@
 
 -compile(export_all).
 
-start([PlayerPids]) -> gen_server:start(?MODULE,[#game{init_players=PlayerPids}],[]).
+start(MyProxys) -> gen_server:start(?MODULE,MyProxys,[]).
 stop(GamePid) -> gen_server:stop(GamePid).
 
 put_stone(GamePid,Stone) -> gen_server:cast(GamePid,{put_stone,Stone}).
 game_over(GamePid,Result) -> gen_server:cast(GamePid,{game_over,Result}).
 line_broken(GamePid,Uid) -> gen_server:cast(GamePid,{line_broken,Uid}).
 come_back(GamePid,Uid,ProxyPid) -> gen_server:cast(GamePid,{come_back,Uid,ProxyPid}).
+get_gid(GamePid) -> gen_server:call(GamePid,get_gid).
 
 % =============================================================================
 
-init(Game) -> {ok,Game}.
+init(MyProxys) -> 
+    Gid = games_manager:alloc_gid(),
+    lists:map(fun(MyProxy)-> proxy:game_created(MyProxy#myproxy.proxy_pid,Gid,self()) end,MyProxys),
+    {ok,#game{gid=Gid,init_players=MyProxys}}.
+    
 terminate(_Reason,_State) -> ok.
+
+handle_call(get_gid,Game) -> {reply,Game#game.gid,Game}.
 
 handle_cast({put_stone,Stone},Game) ->
     case Stone#stone.color of

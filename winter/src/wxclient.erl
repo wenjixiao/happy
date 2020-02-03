@@ -61,10 +61,18 @@ loop(Frame,Socket,Context) ->
 
                         "invite" ->
                             [Name] = Params,
-                            Invite = #invite{fromName=Context#context.player#player.name,toName=Name},
+                            Invite = #invite{toUid=Name},
                             gen_tcp:send(Socket,term_to_binary(Invite)),
                             wxTextCtrl:clear(InputTextCtrl),
+                            loop(Frame,Socket,Context);
+
+                        "invite_ok" ->
+                            [Name] = Params,
+                            InviteOk = #invite_ok{toUid=Name},
+                            gen_tcp:send(Socket,term_to_binary(InviteOk)),
+                            wxTextCtrl:clear(InputTextCtrl),
                             loop(Frame,Socket,Context)
+
                     end;
 
                 true -> loop(Frame,Socket,Context)

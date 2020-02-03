@@ -2,6 +2,7 @@
 
 -include("msgs.hrl").
 
+-record(myproxy,{uid,proxy_pid}).
 -record(mygame,{gid,game_pid}).
 -record(context,{sock,player,mygames}).
 
@@ -10,14 +11,16 @@
 
 -compile(export_all).
 
-start(Socket) -> gen_server:start(?MODULE,[#context{sock=Socket,mygames=[]}],[]).
+start(Socket) -> gen_server:start(?MODULE,Socket,[]).
 stop(ProxyPid) -> gen_server:stop(ProxyPid).
 
 send_msg(ProxyPid,Msg) -> gen_server:cast(ProxyPid,{send,Msg}).
+game_created(ProxyPid,Gid,GamePid) -> gen_server:cast(ProxyPid,{game_created,#mygame{gid=Gid,game_pid=GamePid}}).
 
 % =============================================================================
 
-init([Context]) -> 
+init(Socket) -> 
+    Context = #context{sock=Socket,mygames=[]},
     io:format("proxy started: ~p,~p~n",[Context,self()]),
     {ok,Context}.
 
@@ -44,9 +47,18 @@ handle_info({tcp,Sock,Data},Context) ->
                     {noreply,Context}
             end;
 
-        #invite{toName=ToName} -> 
-            proxys_manager:send_msg(ToName,Msg),
+        #invite{toUid=ToUid} -> 
+            proxys_manager:send_msg(ToUid,Msg),
             {noreply,Context};
+
+        #invite_ok{toUid=ToUid} ->
+            MyProxy = #myproxy{uid=Context#context.player#player.name,proxy_pid=self()},
+            YourProxy = #myproxy{uid=ToUid,proxy_pid=proxys_manager:get_pid(ToUid)},
+            MyProxys = [MyProxy,YourProxy],
+            case game:start(MyProxys) of
+                {ok,GamePid} -> {noreply,Context};
+                {error,Reason} -> io:format("game start: ~p~n",[Reason])
+            end;
 
         #put_stone{gid=Gid,stone=Stone} ->
             MyGames = Context#context.mygames,
@@ -56,14 +68,18 @@ handle_info({tcp,Sock,Data},Context) ->
                     true -> ok
                 end
             end,
-            lists:map(Fun,MyGames)
-    end,
-    {noreply,Context};
+            lists:map(Fun,MyGames),
+            {noreply,Context}
+    end;
 
 handle_info({tcp_closed,Sock},Context) ->
     Fun = fun(MyGame) -> game:line_broken(MyGame#mygame.game_pid,Context#context.player#player.name) end,
     lists:map(Fun,Context#context.mygames),
     {stop,normal,Context}.
+
+handle_cast({game_created,MyGame},Context) -> 
+    NewMyGames = Context#context.mygames ++ [MyGame],
+    {noreply,Context#context{mygames=NewMyGames}};
 
 handle_cast({send,Msg},Context) ->
     gen_tcp:send(Context#context.sock,term_to_binary(Msg)),
