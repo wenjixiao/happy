@@ -2,18 +2,22 @@
 
 -record(idpool,{size,step,numbers}).
 
+-behavior(gen_server).
+
+-compile(export_all).
+
 start() -> gen_server:start({local,?MODULE},?MODULE,[],[]).
 stop() -> gen_server:stop(?MODULE).
 
 alloc_gid() -> gen_server:call(?MODULE,alloc_gid).
-release_gid() -> gen_server:cast(?MODULE,release_gid).
+release_gid(Gid) -> gen_server:cast(?MODULE,{release_gid,Gid}).
 
 % =============================================================================
 
 init([]) -> {ok,#idpool{size=0,step=10,numbers=[]}}.
 terminate(_Reason,_State) -> ok.
 
-handle_call(alloc_gid,IdPool) -> 
+handle_call(alloc_gid,From,IdPool) -> 
     Nums = IdPool#idpool.numbers,
     LenNow = length(Nums),
     if
@@ -27,7 +31,7 @@ handle_call(alloc_gid,IdPool) ->
             {reply,Head,IdPool#idpool{numbers=Rest}}
     end.
 
-handle_cast(release_gid,Gid,IdPool) -> {noreply,IdPool#idpool{numbers=lists:sort(IdPool#idpool.numbers ++ [Gid])}}.
+handle_cast({release_gid,Gid},IdPool) -> {noreply,IdPool#idpool{numbers=lists:sort(IdPool#idpool.numbers ++ [Gid])}}.
 
 % =============================================================================
 
