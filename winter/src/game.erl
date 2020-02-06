@@ -2,17 +2,11 @@
 
 -include("msgs.hrl").
 
--record(myproxy,{uid,proxy_pid}).
--record(players,{black,white}).
--record(clocks,{black,white}).
--record(broken_colors,{black,white}).
--record(game,{gid,state,color,init_players,players,clocks,broken_colors,stones,proto,result}).
-
 -behavior(gen_server).
 
 -compile(export_all).
 
-start(MyProxys) -> gen_server:start(?MODULE,MyProxys,[]).
+start(MyProxys,Proto) -> gen_server:start(?MODULE,[MyProxys,Proto],[]).
 stop(GamePid) -> gen_server:stop(GamePid).
 
 put_stone(GamePid,Stone) -> gen_server:cast(GamePid,{put_stone,Stone}).
@@ -23,10 +17,28 @@ get_gid(GamePid) -> gen_server:call(GamePid,get_gid).
 
 % =============================================================================
 
-init(MyProxys) -> 
+init([MyProxys,Proto]) -> 
     Gid = games_manager:alloc_gid(),
-    lists:map(fun(MyProxy)-> proxy:game_created(MyProxy#myproxy.proxy_pid,Gid,self()) end,MyProxys),
-    {ok,#game{gid=Gid,init_players=MyProxys}}.
+    GamePid = self(),
+    [MyProxy1,MyProxy2] = MyProxys,
+    Players = case Proto#proto.who_first of
+        random -> 
+             case random:uniform(2) of
+                1 -> #players{black=MyProxy1,white=MyProxy2};
+                2 -> #players{black=MyProxy2,white=MyProxy1}
+            end;
+        {assign,Color} -> 
+            case Color of
+                black -> #players{black=MyProxy1,white=MyProxy2};
+                white -> #players{black=MyProxy2,white=MyProxy1}
+            end
+    end,
+    Clocks = #clocks{black=Proto#proto.clock_def,white=Proto#proto.clock_def},
+    Game = #game{gid=Gid,state=running,players=MyProxys,clocks=Clocks,proto=Proto,stones=[]},
+    % state: prepare-> (running<=>paused) -> ended
+    games_manager:add(Gid,GamePid),
+    lists:map(fun(MyProxy)-> proxy:game_created(MyProxy#myproxy.proxy_pid,Game,GamePid) end,MyProxys),
+    {ok,Game}.
     
 terminate(_Reason,_State) -> ok.
 

@@ -2,7 +2,6 @@
 
 -include("msgs.hrl").
 
--record(myproxy,{uid,proxy_pid}).
 -record(mygame,{gid,game_pid}).
 -record(context,{sock,player,mygames}).
 
@@ -15,7 +14,7 @@ start(Socket) -> gen_server:start(?MODULE,Socket,[]).
 stop(ProxyPid) -> gen_server:stop(ProxyPid).
 
 send_msg(ProxyPid,Msg) -> gen_server:cast(ProxyPid,{send,Msg}).
-game_created(ProxyPid,Gid,GamePid) -> gen_server:cast(ProxyPid,{game_created,#mygame{gid=Gid,game_pid=GamePid}}).
+game_created(ProxyPid,Game,GamePid) -> gen_server:cast(ProxyPid,{game_created,Game,GamePid}).
 
 % =============================================================================
 
@@ -47,15 +46,15 @@ handle_info({tcp,Sock,Data},Context) ->
                     {noreply,Context}
             end;
 
-        #invite{toUid=ToUid} -> 
+        #invite{toUid=ToUid,proto=Proto} -> 
             proxys_manager:send_msg(ToUid,Msg),
             {noreply,Context};
 
-        #invite_ok{toUid=ToUid} ->
+        #invite_ok{toUid=ToUid,proto=Proto} ->
             MyProxy = #myproxy{uid=Context#context.player#player.name,proxy_pid=self()},
             YourProxy = #myproxy{uid=ToUid,proxy_pid=proxys_manager:get_pid(ToUid)},
             MyProxys = [MyProxy,YourProxy],
-            case game:start(MyProxys) of
+            case game:start(MyProxys,Proto) of
                 {ok,GamePid} -> {noreply,Context};
                 {error,Reason} -> io:format("game start: ~p~n",[Reason])
             end;
@@ -77,8 +76,12 @@ handle_info({tcp_closed,Sock},Context) ->
     lists:map(Fun,Context#context.mygames),
     {stop,normal,Context}.
 
-handle_cast({game_created,MyGame},Context) -> 
+handle_cast({game_created,Game,GamePid},Context) -> 
+    MyGame = #mygame{gid=Game#game.gid,game_pid=GamePid},
     NewMyGames = Context#context.mygames ++ [MyGame],
+
+    gen_tcp:send(Context#context.sock,term_to_binary(Game)),
+
     {noreply,Context#context{mygames=NewMyGames}};
 
 handle_cast({send,Msg},Context) ->

@@ -6,6 +6,7 @@ basic_services() ->
     players_manager:start(),
     proxys_manager:start(),
     line_broken_manager:start(),
+    id_pool:start(),
     games_manager:start().
 
 start() ->
