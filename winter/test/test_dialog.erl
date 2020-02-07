@@ -37,20 +37,29 @@ setup_dialog(Dialog) ->
 
     Text = wxTextCtrl:new(Panel,?MYTEXT),
 
-    ButtonOk = wxButton:new(Panel,?wxID_OK,[{label,"OK"}]),
-
-    FunOk = fun(EventRecord,EventObject) -> 
+    OkCallback = fun(EventRecord,EventObject) -> 
         Line = string:trim(wxTextCtrl:getValue(Text)),
         io:format("~p~n",[Line])
         % io:format("~p~n~p~n",[A,B]),
         % wxDialog:destroy(Dialog)
         % wxDialog:endModal(Dialog,?wxID_OK) 
     end,
-    GetValue = fun() -> string:trim(wxTextCtrl:getValue(Text)) end,
-    % wxButton:connect(ButtonOk,command_button_clicked),
+
+    GetValue = fun() -> 
+        Result = string:trim(wxTextCtrl:getValue(Text)),
+        wxDialog:destroy(Dialog),
+        Result
+    end,
+    CancelFun = fun() ->
+        wxDialog:destroy(Dialog),
+        cancel
+    end,
+
+    ButtonOk = wxButton:new(Panel,?MYOK,[{label,"OK"}]),
     wxButton:connect(ButtonOk,command_button_clicked,[{skip,true},{userData,GetValue}]),
 
-    ButtonCancel = wxButton:new(Panel,?wxID_CANCEL,[{label,"CANCEL"}]),
+    ButtonCancel = wxButton:new(Panel,?MYCANCEL,[{label,"CANCEL"}]),
+    wxButton:connect(ButtonCancel,command_button_clicked,[{skip,true},{userData,CancelFun}]),
 
     wxBoxSizer:add(Sizer,Text,[{proportion,1},{flag,?wxEXPAND}]),
     wxBoxSizer:add(Sizer,ButtonOk,[{proportion,1},{flag,?wxEXPAND}]),
@@ -73,8 +82,11 @@ loop(Frame) ->
             io:format("start dialog~n"),
             start_dialog(Frame),
             loop(Frame);
-        #wx{id=?wxID_OK,userData=GetValue,event=#wxCommand{type=command_button_clicked}} -> 
+        #wx{id=?MYOK,userData=GetValue,event=#wxCommand{type=command_button_clicked}} -> 
             io:format("~p~n",[GetValue()]),
+            loop(Frame);
+        #wx{id=?MYCANCEL,userData=CancelFun,event=#wxCommand{type=command_button_clicked}} -> 
+            io:format("~p~n",[CancelFun()]),
             loop(Frame);
         #wx{event=#wxClose{}} -> io:format("window closed~n")
     end.
