@@ -32,7 +32,9 @@ setup(Frame) ->
 loop(Frame) ->
     receive
         #wx{id=?MYBUTTON,event=#wxCommand{type=command_button_clicked}} -> 
-            io:format("hello~n"),
+            io:format("lowest:~p,highest:~p~n",[?wxID_LOWEST,?wxID_HIGHEST]),
+            io:format("frame:~p~n",[Frame]),
+            Pid = spawn(mydialog1,start,[Frame,self(),wx:get_env()]),
             loop(Frame);
         #wx{event=#wxClose{}} -> io:format("window closed~n")
     end.

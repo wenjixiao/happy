@@ -30,15 +30,17 @@ loop(Frame) ->
     receive
         #wx{id=?MYBUTTON,event=#wxCommand{type=command_button_clicked}} -> 
             io:format("start dialog~n"),
-            DD = mydialog:new_dialog(Frame,self()),
-            io:format("mydialog:~p~n",[DD]),
-            mydialog:show_dialog(DD),
-            % Result = mydialog:get_result(DD),
-            % io:format("result is:~p~n",[Result]),
-            % mydialog:destroy_dialog(DD),
-
+            WxDialog = mydialog:new(Frame,self()),
+            io:format("mydialog:~p~n",[WxDialog]),
+            mydialog:show(WxDialog),
             loop(Frame);
 
-        #wx{event=#wxClose{}} -> io:format("window closed~n");
-        {dialog_result,Result} -> io:format("ok,i received the dialog_result:~p~n",[Result])
+        #wx{event=#wxClose{}} -> 
+            io:format("window closed~n");
+
+        {dialog_result,ok,Result} -> 
+            io:format("dialog ok:~p~n",[Result]);
+
+        {dialog_result,cancel} ->
+            io:format("dialog cancel")
     end.
