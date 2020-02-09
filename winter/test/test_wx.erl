@@ -3,6 +3,7 @@
 -include_lib("wx/include/wx.hrl").
 
 -define(MYBUTTON,100).
+-define(MYBUTTON1,105).
 
 -export([start/0]).
 
@@ -34,7 +35,18 @@ loop(Frame) ->
         #wx{id=?MYBUTTON,event=#wxCommand{type=command_button_clicked}} -> 
             io:format("lowest:~p,highest:~p~n",[?wxID_LOWEST,?wxID_HIGHEST]),
             io:format("frame:~p~n",[Frame]),
-            Pid = spawn(mydialog1,start,[Frame,self(),wx:get_env()]),
+            % Pid = spawn(mydialog1,start,[Frame,self(),wx:get_env()]),
+            Result = mydialog1:start(Frame,self(),wx:get_env()),
+            io:format("result:~p~n",[Result]),
             loop(Frame);
+
+        #wx{id=?MYBUTTON1} ->
+            io:format("mybutton1~n"),
+            loop(Frame);
+
+        {dialog,Msg} -> 
+            io:format("~p~n",[Msg]),
+            loop(Frame);
+
         #wx{event=#wxClose{}} -> io:format("window closed~n")
     end.

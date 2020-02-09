@@ -7,8 +7,13 @@
 -define(MYTEXT,102).
 -define(MYOK,103).
 -define(MYCANCEL,104).
--define(MYBUTTON,105).
+-define(MYBUTTON1,105).
 -define(MYDIALOG,1001).
+
+%%
+%% modal dialog的处理，必须用callback的方式！
+%% 因为进不去loop消息处理循环。
+%% 
 
 start(Parent,FromPid,Env) -> 
     io:format("parent:~p,from_pid:~p~n",[Parent,FromPid]),
@@ -19,8 +24,16 @@ start(Parent,FromPid,Env) ->
     Sizer = wxBoxSizer:new(?wxVERTICAL),
 
     Text = wxTextCtrl:new(Panel,?MYTEXT),
-    Button = wxButton:new(Panel,?MYBUTTON,[{label,"sayhello"}]),
+    Button = wxButton:new(Panel,?MYBUTTON1,[{label,"mybutton1"}]),
+
     ButtonOk = wxButton:new(Panel,?MYOK,[{label,"OK"}]),
+    OkFun = fun(A,B) ->
+        io:format("helloooo~n"),
+        FromPid ! {dialog,"hello wrold!!"},
+        wxDialog:endModal(Dialog,1)
+    end,
+    wxButton:connect(ButtonOk,command_button_clicked,[{callback,OkFun}]),
+
     ButtonCancel = wxButton:new(Panel,?MYCANCEL,[{label,"CANCEL"}]),
 
     wxBoxSizer:add(Sizer,Text,[{proportion,1},{flag,?wxEXPAND}]),
@@ -31,35 +44,21 @@ start(Parent,FromPid,Env) ->
     wxPanel:setSizer(Panel,Sizer),
 
     wxDialog:connect(Dialog,command_button_clicked),
-    wxDialog:show(Dialog),
-    loop(Dialog).
-
-    % {Dialog,#state{win=Dialog,parent=Parent,data=Text,fromPid=FromPid}}.
+    %% showModal以后，会卡在那里，因为要等一个Result值。
+    %% 由于进入不了loop，所以，这个方式不行！
+    Result = wxDialog:showModal(Dialog).
+    %% loop can't run!!!!
+    % loop(Dialog).
 
 loop(Dialog) ->
     receive
-        #wx{id=?MYBUTTON} ->
+        #wx{id=?MYBUTTON1} ->
             io:format("hehehhehe...~n"),
-            loop(Dialog)
+            loop(Dialog);
+        #wx{id=?MYOK} ->
+            % wxDialog:destroy(Dialog),
+            wxDialog:endModal(Dialog,ok);
+        #wx{id=?MYCANCEL} ->
+            % wxDialog:destroy(Dialog),
+            wxDialog:endModal(Dialog,cancel)
     end.
-
-% terminate(Reason,State) -> 
-%     io:format("wx_object stopped!~n"),
-%     ok.
-
-% handle_call(show,_From,State) ->
-%     wxDialog:show(State#state.win),
-%     {reply,ok,State}.
-
-% handle_event(#wx{id=?MYBUTTON},State) -> 
-%     io:format("hehehhehe...~n"),
-%     {noreply,State};
-
-% handle_event(#wx{id=?MYOK},State) -> 
-%     Result = string:trim(wxTextCtrl:getValue(State#state.data)),
-%     State#state.fromPid ! {dialog_result,ok,Result},
-%     {stop,normal,State};
-
-% handle_event(#wx{id=?MYCANCEL},State) -> 
-%     State#state.fromPid ! {dialog_result,cancel},
-%     {stop,normal,State}.
