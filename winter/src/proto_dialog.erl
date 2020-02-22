@@ -28,6 +28,7 @@
 
 new(Parent,FromPid) -> wx_object:start(?MODULE,[Parent,FromPid],[]).
 show(Dialog) -> wx_object:call(Dialog,show).
+set_value(Dialog,Proto) -> wx_object:cast(Dialog,{set_value,Proto}).
 
 init([Parent,FromPid]) -> 
     Dialog = wxDialog:new(Parent,?wxID_ANY,"proto dialog",[{size,{400,400}}]),
@@ -36,13 +37,10 @@ init([Parent,FromPid]) ->
     Sizer = wxBoxSizer:new(?wxVERTICAL),
 
     WhoFirstCtrl = wxChoice:new(Panel,?WHO_FIRST_CHOICE,[{choices,["random","black","white"]}]),
-    wxChoice:setSelection(WhoFirstCtrl,0),
 
-    RangeZiCtrl = wxChoice:new(Panel,?RANGE_ZI_CHOICE,[{choices,"012345678"}]),
-    wxChoice:setSelection(RangeZiCtrl,0),
+    RangeZiCtrl = wxChoice:new(Panel,?RANGE_ZI_CHOICE,[{choices,"0123456789"}]),
 
-    TieMuCtrl = wxChoice:new(Panel,?TIE_MU_CHOICE,[{choices,["6.5","7.5","5.5"]}]),
-    wxChoice:setSelection(TieMuCtrl,0),
+    TieMuCtrl = wxTextCtrl:new(Panel,?TIE_MU_CHOICE),
 
     ButtonOk = wxButton:new(Panel,?MYOK,[{label,"OK"}]),
     ButtonCancel = wxButton:new(Panel,?MYCANCEL,[{label,"CANCEL"}]),
@@ -55,22 +53,18 @@ init([Parent,FromPid]) ->
     GridSizer = wxGridSizer:new(2),
 
     ClockBaoLiu = wxTextCtrl:new(ClockPanel,?CLOCK_BAO_LIU),
-    wxTextCtrl:setValue(ClockBaoLiu,"20"),
     wxGridSizer:add(GridSizer,wxStaticText:new(ClockPanel,?wxID_ANY,"bao liu"),[{proportion,0},{flag,?wxEXPAND}]),
     wxGridSizer:add(GridSizer,ClockBaoLiu,[{proportion,0},{flag,?wxEXPAND}]),
 
     ClockDuMiao = wxTextCtrl:new(ClockPanel,?CLOCK_DU_MIAO),
-    wxTextCtrl:setValue(ClockDuMiao,"30"),
     wxGridSizer:add(GridSizer,wxStaticText:new(ClockPanel,?wxID_ANY,"du miao"),[{proportion,0},{flag,?wxEXPAND}]),
     wxGridSizer:add(GridSizer,ClockDuMiao,[{proportion,0},{flag,?wxEXPAND}]),
 
     ClockTimes = wxTextCtrl:new(ClockPanel,?CLOCK_TIMES),
-    wxTextCtrl:setValue(ClockTimes,"3"),
     wxGridSizer:add(GridSizer,wxStaticText:new(ClockPanel,?wxID_ANY,"times"),[{proportion,0},{flag,?wxEXPAND}]),
     wxGridSizer:add(GridSizer,ClockTimes,[{proportion,0},{flag,?wxEXPAND}]),
 
     ClockPerTime = wxTextCtrl:new(ClockPanel,?CLOCK_PER_TIME),
-    wxTextCtrl:setValue(ClockPerTime,"60"),
     wxGridSizer:add(GridSizer,wxStaticText:new(ClockPanel,?wxID_ANY,"per time"),[{proportion,0},{flag,?wxEXPAND}]),
     wxGridSizer:add(GridSizer,ClockPerTime,[{proportion,0},{flag,?wxEXPAND}]),
 
@@ -95,9 +89,26 @@ terminate(Reason,State) ->
     io:format("wx_object stopped!~n"),
     ok.
 
-handle_call(show,_From,State) ->
-    wxDialog:show(State#state.win),
-    {reply,ok,State}.
+handle_cast({set_value,Proto},State) ->
+    WhoFirstSelect = case Proto#proto.who_first of 
+        random -> 0; 
+        black -> 1; 
+        white -> 2 
+    end,
+    wxChoice:setSelection(State#state.ctrls#ctrls.who_first,WhoFirstSelect),
+
+    wxChoice:setSelection(State#state.ctrls#ctrls.range_zi,Proto#proto.range_zi),
+
+    wxTextCtrl:setValue(State#state.ctrls#ctrls.tie_mu,float_to_list(Proto#proto.tie_mu,[{decimals,1}])),
+
+    wxTextCtrl:setValue(State#state.ctrls#ctrls.clock_bao_liu,integer_to_list(Proto#proto.clock_def#clock_def.bao_liu)),
+    wxTextCtrl:setValue(State#state.ctrls#ctrls.clock_du_miao,integer_to_list(Proto#proto.clock_def#clock_def.du_miao)),
+    wxTextCtrl:setValue(State#state.ctrls#ctrls.clock_times,integer_to_list(Proto#proto.clock_def#clock_def.times)),
+    wxTextCtrl:setValue(State#state.ctrls#ctrls.clock_per_time,integer_to_list(Proto#proto.clock_def#clock_def.per_time)),
+
+    {noreply,State}.
+
+handle_call(show,_From,State) -> {reply,wxDialog:show(State#state.win),State}.
 
 handle_event(#wx{id=?MYOK},State) -> 
     WhoFirst = wxChoice:getSelection(State#state.ctrls#ctrls.who_first),
@@ -107,12 +118,7 @@ handle_event(#wx{id=?MYOK},State) ->
         2 -> white
     end,
     RangeZi = wxChoice:getSelection(State#state.ctrls#ctrls.range_zi),
-    TieMu = wxChoice:getSelection(State#state.ctrls#ctrls.tie_mu),
-    MyTieMu = case TieMu of
-        0 -> 6.5;
-        1 -> 7.6;
-        2 -> 5.5
-    end,
+    TieMu = wxTextCtrl:getValue(State#state.ctrls#ctrls.tie_mu),
 
     ClockBaoLiu = wxTextCtrl:getValue(State#state.ctrls#ctrls.clock_bao_liu),
     ClockDuMiao = wxTextCtrl:getValue(State#state.ctrls#ctrls.clock_du_miao),
@@ -121,7 +127,8 @@ handle_event(#wx{id=?MYOK},State) ->
 
     ClockDef = #clock_def{bao_liu=list_to_integer(ClockBaoLiu),du_miao=list_to_integer(ClockDuMiao),
         times=list_to_integer(ClockTimes),per_time=list_to_integer(ClockPerTime)},
-    Proto = #proto{who_first=MyWhoFirst,range_zi=RangeZi,tie_mu=MyTieMu,clock_def=ClockDef},
+    Proto = #proto{who_first=MyWhoFirst,range_zi=RangeZi,tie_mu=list_to_float(TieMu),clock_def=ClockDef},
+
     State#state.fromPid ! {dialog_result,ok,Proto},
     {stop,normal,State};
 
