@@ -50,11 +50,10 @@ handle_info({tcp,Sock,Data},Context) ->
             proxys_manager:send_msg(ToUid,Msg),
             {noreply,Context};
 
-        #invite_ok{toUid=ToUid,proto=Proto} ->
-            MyProxy = #myproxy{uid=Context#context.player#player.name,proxy_pid=self()},
-            YourProxy = #myproxy{uid=ToUid,proxy_pid=proxys_manager:get_pid(ToUid)},
-            MyProxys = [MyProxy,YourProxy],
-            case game:start(MyProxys,Proto) of
+        #invite_ok{toUid=ToUid,fromUid=FromUid,proto=Proto} ->
+            FromProxy = #myproxy{uid=FromUid,proxy_pid=proxys_manager:get_pid(FromUid)},
+            ToProxy = #myproxy{uid=ToUid,proxy_pid=proxys_manager:get_pid(ToUid)},
+            case game:start([FromProxy,ToProxy],Proto) of
                 {ok,GamePid} -> {noreply,Context};
                 {error,Reason} -> io:format("game start: ~p~n",[Reason])
             end;

@@ -18,7 +18,7 @@ get_gid(GamePid) -> gen_server:call(GamePid,get_gid).
 % =============================================================================
 
 init([MyProxys,Proto]) -> 
-    Gid = games_manager:alloc_gid(),
+    Gid = id_pool:alloc_gid(),
     GamePid = self(),
     [MyProxy1,MyProxy2] = MyProxys,
     Players = case Proto#proto.who_first of
@@ -27,14 +27,11 @@ init([MyProxys,Proto]) ->
                 1 -> #players{black=MyProxy1,white=MyProxy2};
                 2 -> #players{black=MyProxy2,white=MyProxy1}
             end;
-        {assign,Color} -> 
-            case Color of
-                black -> #players{black=MyProxy1,white=MyProxy2};
-                white -> #players{black=MyProxy2,white=MyProxy1}
-            end
+        black -> #players{black=MyProxy1,white=MyProxy2};
+        white -> #players{black=MyProxy2,white=MyProxy1}
     end,
     Clocks = #clocks{black=Proto#proto.clock_def,white=Proto#proto.clock_def},
-    Game = #game{gid=Gid,state=running,players=MyProxys,clocks=Clocks,proto=Proto,stones=[]},
+    Game = #game{gid=Gid,state=running,players=Players,clocks=Clocks,proto=Proto,stones=[]},
     % state: prepare-> (running<=>paused) -> ended
     games_manager:add(Gid,GamePid),
     lists:map(fun(MyProxy)-> proxy:game_created(MyProxy#myproxy.proxy_pid,Game,GamePid) end,MyProxys),

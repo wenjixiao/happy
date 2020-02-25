@@ -61,15 +61,13 @@ loop(Frame,Socket,Context) ->
 
                         "invite" ->
                             [Name] = Params,
-                            Invite = #invite{toUid=Name},
-                            gen_tcp:send(Socket,term_to_binary(Invite)),
-                            wxTextCtrl:clear(InputTextCtrl),
-                            loop(Frame,Socket,Context);
 
-                        "invite_ok" ->
-                            [Name] = Params,
-                            InviteOk = #invite_ok{toUid=Name},
-                            gen_tcp:send(Socket,term_to_binary(InviteOk)),
+                            ProtoDialog = proto_dialog:new(Frame,self(),{invite,Name}),
+                            ClockDef = #clock_def{bao_liu=20,du_miao=30,times=3,per_time=60},
+                            DefaultProto = #proto{who_first=random,tie_mu=6.5,range_zi=2,clock_def=ClockDef},
+                            proto_dialog:set_value(ProtoDialog,DefaultProto),
+                            proto_dialog:show(ProtoDialog),
+
                             wxTextCtrl:clear(InputTextCtrl),
                             loop(Frame,Socket,Context)
 
@@ -94,10 +92,43 @@ loop(Frame,Socket,Context) ->
 
                 #login_fail{} -> loop(Frame,Socket,Context);
 
-                #invite{} -> 
+                #invite{fromUid=FromUid,toUid=ToUid,proto=Proto} -> 
                     io:format("invite: ~p~n",[Msg]),
+                    ProtoDialog = proto_dialog:new(Frame,self(),{be_invited,FromUid}),
+                    % ClockDef = #clock_def{bao_liu=20,du_miao=30,times=3,per_time=60},
+                    % DefaultProto = #proto{who_first=random,tie_mu=6.5,range_zi=2,clock_def=ClockDef},
+                    proto_dialog:set_value(ProtoDialog,Msg#invite.proto),
+                    proto_dialog:show(ProtoDialog),
+
+                    loop(Frame,Socket,Context);
+
+                #game{} ->
+                    io:format("game: ~p~n",[Msg]),
                     loop(Frame,Socket,Context)
-            end
+            end;
+
+        {dialog_result,ok,{invite,Name,Proto}} -> 
+            io:format("invite dialog ok:~p,~p~n",[Name,Proto]),
+            Invite = #invite{fromUid=Context#context.player#player.name,toUid=Name,proto=Proto},
+            gen_tcp:send(Socket,term_to_binary(Invite)),
+            loop(Frame,Socket,Context);
+
+        {dialog_result,ok,{be_invited,Name,Proto}} ->
+            io:format("be_invited dialog ok:~p,~p~n",[Name,Proto]),
+            InviteOk = #invite_ok{fromUid=Name,toUid=Context#context.player#player.name,proto=Proto},
+            gen_tcp:send(Socket,term_to_binary(InviteOk)),
+            loop(Frame,Socket,Context);
+
+        {dialog_result,cancel,{invite,Name}} -> 
+            io:format("invite dialog cancel"),
+            loop(Frame,Socket,Context);
+
+        {dialog_result,cancel,{be_invited,Name}} -> 
+            io:format("be_invited dialog cancel"),
+            InviteCancel = #invite_cancel{fromUid=Name,toUid=Context#context.player#player.name},
+            gen_tcp:send(Socket,term_to_binary(InviteCancel)),
+            loop(Frame,Socket,Context)
+
     end.
 
 % =============================================================================

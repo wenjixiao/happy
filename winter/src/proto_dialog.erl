@@ -5,7 +5,7 @@
 -behavior(wx_object).
 
 -record(ctrls,{who_first,range_zi,tie_mu,clock_bao_liu,clock_du_miao,clock_times,clock_per_time}).
--record(state,{win,parent,ctrls,fromPid}).
+-record(state,{win,parent,ctrls,fromPid,invite_info}).
 
 -include("msgs.hrl").
 
@@ -26,11 +26,11 @@
 
 % -define(MYDIALOG,1001).
 
-new(Parent,FromPid) -> wx_object:start(?MODULE,[Parent,FromPid],[]).
+new(Parent,FromPid,InviteInfo) -> wx_object:start(?MODULE,[Parent,FromPid,InviteInfo],[]).
 show(Dialog) -> wx_object:call(Dialog,show).
 set_value(Dialog,Proto) -> wx_object:cast(Dialog,{set_value,Proto}).
 
-init([Parent,FromPid]) -> 
+init([Parent,FromPid,InviteInfo]) -> 
     Dialog = wxDialog:new(Parent,?wxID_ANY,"proto dialog",[{size,{400,400}}]),
 
     Panel = wxPanel:new(Dialog),
@@ -83,7 +83,7 @@ init([Parent,FromPid]) ->
     Ctrls = #ctrls{who_first=WhoFirstCtrl,range_zi=RangeZiCtrl,tie_mu=TieMuCtrl,
         clock_bao_liu=ClockBaoLiu,clock_du_miao=ClockDuMiao,clock_times=ClockTimes,clock_per_time=ClockPerTime},
 
-    {Dialog,#state{win=Dialog,parent=Parent,ctrls=Ctrls,fromPid=FromPid}}.
+    {Dialog,#state{win=Dialog,parent=Parent,ctrls=Ctrls,fromPid=FromPid,invite_info=InviteInfo}}.
 
 terminate(Reason,State) -> 
     io:format("wx_object stopped!~n"),
@@ -127,11 +127,23 @@ handle_event(#wx{id=?MYOK},State) ->
 
     ClockDef = #clock_def{bao_liu=list_to_integer(ClockBaoLiu),du_miao=list_to_integer(ClockDuMiao),
         times=list_to_integer(ClockTimes),per_time=list_to_integer(ClockPerTime)},
+
     Proto = #proto{who_first=MyWhoFirst,range_zi=RangeZi,tie_mu=list_to_float(TieMu),clock_def=ClockDef},
 
-    State#state.fromPid ! {dialog_result,ok,Proto},
+    Result = case State#state.invite_info of
+        {invite,Name} -> {invite,Name,Proto};
+        {be_invited,Name} -> {be_invited,Name,Proto}
+    end,
+
+    State#state.fromPid ! {dialog_result,ok,Result},
+    wxDialog:destroy(State#state.win),
     {stop,normal,State};
 
 handle_event(#wx{id=?MYCANCEL},State) -> 
-    State#state.fromPid ! {dialog_result,cancel},
+    Result = case State#state.invite_info of
+        {invite,Name} -> {invite,Name};
+        {be_invited,Name} -> {be_invited,Name}
+    end,
+    State#state.fromPid ! {dialog_result,cancel,Result},
+    wxDialog:destroy(State#state.win),
     {stop,normal,State}.
