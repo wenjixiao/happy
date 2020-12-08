@@ -1,0 +1,157 @@
+syntax="proto3";
+
+//------------------------------------------------
+
+enum Color {
+    white = 0;
+    black = 1;
+}
+
+enum State {
+	starting = 0;
+	playing = 1;
+	paused = 2;
+	stopped = 3;
+}
+
+enum WhoFirst {
+	earmark = 0;
+    random = 1;
+}
+
+enum EndType {
+	counting = 0;
+	not_counting = 1;
+	line_broken = 2;
+	time_out = 3;
+}
+
+//------------------------------------------------
+
+message Result {
+	EndType end_type = 1;
+	Color winner = 2;
+	float mount = 3;
+}
+
+message Stone {
+    Color color = 1;
+    int32 x = 2;
+    int32 y = 3;
+}
+
+message Clock {
+    int32 seconds = 1;
+    int32 counting = 2;
+    int32 times = 3;
+    int32 every_time = 4;
+}
+
+message Rule {
+	int32 handcap = 1;
+	WhoFirst who_first = 2;
+	float komi = 3;
+	Clock clock = 4;
+}
+
+message User {
+	string name=1;
+	string level=2;
+}
+
+message Game {
+	int32 id = 9;
+    State state = 1;
+    bool line_broken = 10;
+    Rule rule = 2;
+    Result result = 3;
+    repeated Stone stones = 4;
+    repeated User users = 5;
+    repeated Color colors = 6;
+    repeated Clock clockes = 7;
+    repeated User watchers = 8;
+}
+
+//------------------------------------------------
+
+enum MsgType {
+    TLogin = 0;
+    TLoginOk = 1;
+    TLoginFail = 2;
+    THand = 3;
+    TLineBroken = 4;
+    TComeBack = 10;
+    TCountDown = 5;
+    TGameData = 8;
+    TStateChange = 9;
+    TWatcherLeave = 11;
+    TGameOver = 12;
+}
+
+//------------------------------------------------
+
+message Msg{
+    MsgType type = 1;
+    oneof union {
+        Login login = 2;
+        LoginOk login_ok = 3;
+        LoginFail login_fail = 4;
+        Hand hand = 5;
+        LineBroken line_broken = 6;
+        ComeBack come_back = 12;
+        Countdown countdown = 7;
+        GameData game_data = 10;
+        StateChange state_change = 11;
+        WatcherLeave watcher_leave = 12;
+        GameOver game_over = 13;
+    }
+}
+
+message Login {
+    string name = 1;
+}
+
+message Hand{
+    int32 game_id = 1;
+    Stone stone = 2;
+    Clock clock = 3;
+}
+
+message LoginOk{
+	User user = 1;
+}
+
+message LoginFail{}
+
+message LineBroken {
+	int32 game_id = 1;
+}
+
+message ComeBack {
+	int32 game_id = 1;
+}
+
+message Countdown {
+	int32 game_id = 1;
+	User user = 2;
+}
+
+message GameData {
+	int32 game_id = 1;
+	Game game = 2;
+}
+
+message StateChange {
+	int32 game_id = 1;
+	State state = 2;
+}
+
+message WatcherLeave {
+	int32 game_id = 1;
+	User user = 2;
+}
+
+message GameOver {
+	int32 game_id = 1;
+	Result result = 2;
+}
